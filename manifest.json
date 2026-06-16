@@ -1,0 +1,19 @@
+{
+  "name": "Swell — UK surf forecast",
+  "short_name": "Swell",
+  "description": "Live wave and swell forecast for UK surf beaches.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#04111f",
+  "theme_color": "#04111f",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

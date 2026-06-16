@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#04111f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="description" content="Live wave and swell forecast for UK surf beaches.">
+<title>Swell — UK surf forecast</title>
+<link rel="manifest" href="./manifest.json">
+<style>
+  :root {
+    --abyss: #04111f;
+    --deep:  #0a2a43;
+    --teal:  #18c4b4;
+    --foam:  #eafcff;
+    --sun:   #ffd089;
+    --coral: #ff7a59;
+    --glass: rgba(234,252,255,.08);
+    --hair:  rgba(234,252,255,.14);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin:0; min-height:100%; }
+  body {
+    background: linear-gradient(180deg, var(--abyss) 0%, #061a2e 45%, var(--deep) 100%);
+    color: var(--foam);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: max(env(safe-area-inset-top),20px) 18px 40px; }
+
+  header { display:flex; align-items:baseline; justify-content:space-between; margin-bottom: 14px; }
+  .brand { font-size: 30px; font-weight: 800; letter-spacing: -1.2px; }
+  .brand b { color: var(--teal); }
+  .tag { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: rgba(234,252,255,.45); }
+
+  /* region filter */
+  .regions { display:flex; gap:8px; overflow-x:auto; padding-bottom: 4px; margin-bottom: 14px; scrollbar-width:none; }
+  .regions::-webkit-scrollbar { display:none; }
+  .pill {
+    flex: 0 0 auto; border: 1px solid var(--hair); background: transparent;
+    color: var(--foam); font: inherit; font-size: 13px; padding: 7px 14px;
+    border-radius: 999px; cursor: pointer; white-space: nowrap; transition: .15s;
+  }
+  .pill[aria-pressed="true"] { background: var(--teal); border-color: var(--teal); color: var(--abyss); font-weight: 700; }
+
+  /* beach select */
+  select {
+    width: 100%; font: inherit; font-size: 16px; color: var(--foam);
+    background: var(--glass); border: 1px solid var(--hair); border-radius: 14px;
+    padding: 13px 14px; margin-bottom: 18px; appearance: none;
+    background-image: linear-gradient(45deg, transparent 50%, var(--teal) 50%), linear-gradient(135deg, var(--teal) 50%, transparent 50%);
+    background-position: calc(100% - 20px) calc(50% - 2px), calc(100% - 15px) calc(50% - 2px);
+    background-size: 5px 5px, 5px 5px; background-repeat: no-repeat;
+  }
+  select option { color:#000; }
+
+  /* hero wave canvas */
+  .hero {
+    position: relative; border-radius: 22px; overflow: hidden;
+    border: 1px solid var(--hair); margin-bottom: 18px;
+    background: linear-gradient(180deg, #06243d, #04111f);
+  }
+  #seaCanvas { display:block; width:100%; height: 230px; }
+  .hero-read {
+    position:absolute; left:18px; top:16px; z-index:2;
+  }
+  .hero-read .big { font-size: 56px; font-weight: 800; line-height:.9; letter-spacing:-2px; }
+  .hero-read .big span { font-size: 22px; font-weight:600; color:rgba(234,252,255,.6); }
+  .hero-read .word { font-size: 18px; font-style: italic; font-weight: 700; color: var(--sun); margin-top: 4px; }
+  .hero-place { position:absolute; right:18px; top:16px; z-index:2; text-align:right; font-size:13px; color:rgba(234,252,255,.6); max-width:50%; }
+  .hero-state { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; z-index:3; font-size:14px; color:rgba(234,252,255,.7); }
+
+  /* current stats */
+  .stats { display:grid; grid-template-columns: repeat(auto-fit, minmax(74px,1fr)); gap:10px; margin-bottom: 22px; }
+  .stat { background: var(--glass); border:1px solid var(--hair); border-radius:16px; padding:14px; text-align:center; }
+  .stat .k { font-size:10px; letter-spacing:2px; text-transform:uppercase; color:rgba(234,252,255,.45); }
+  .stat .v { font-size:24px; font-weight:800; margin-top:4px; }
+  .stat .u { font-size:13px; font-weight:600; color:rgba(234,252,255,.55); }
+  .arrow { display:inline-block; transition: transform .4s; color: var(--teal); }
+
+  h2 { font-size:13px; letter-spacing:3px; text-transform:uppercase; color:rgba(234,252,255,.45); margin: 0 0 12px; }
+
+  /* forecast row */
+  .forecast { display:grid; grid-template-columns: repeat(5,1fr); gap:10px; }
+  .day { background: var(--glass); border:1px solid var(--hair); border-radius:16px; padding:12px 6px; text-align:center; }
+  .day .dow { font-size:12px; font-weight:700; color:rgba(234,252,255,.7); }
+  .day svg { display:block; margin:8px auto 6px; }
+  .day .h { font-size:18px; font-weight:800; }
+  .day .h span { font-size:11px; color:rgba(234,252,255,.5); }
+  .day .w { font-size:10px; color:var(--sun); margin-top:2px; min-height:13px; }
+  .day .temp { font-size:12px; font-weight:700; margin-top:6px; color:rgba(234,252,255,.85); }
+  .day .temp span { color:rgba(234,252,255,.45); font-weight:600; }
+  .day .dayicon { display:inline-block; vertical-align:middle; margin-left:3px; }
+
+  /* weather conditions card */
+  .wx { display:flex; align-items:center; gap:14px; background:var(--glass); border:1px solid var(--hair);
+        border-radius:18px; padding:14px 16px; margin-bottom:22px; }
+  .wx .ico { flex:0 0 auto; }
+  .wx .cond { flex:1 1 auto; }
+  .wx .cond .lbl { font-size:16px; font-weight:700; }
+  .wx .cond .sub { font-size:12px; color:rgba(234,252,255,.55); margin-top:3px; }
+  .wx .cond .sub .arrow { color:var(--teal); }
+  .wx .temp { flex:0 0 auto; text-align:right; }
+  .wx .temp .now { font-size:34px; font-weight:800; letter-spacing:-1px; }
+  .wx .temp .mm { font-size:12px; color:rgba(234,252,255,.55); }
+
+  footer { margin-top: 26px; font-size: 11px; color: rgba(234,252,255,.35); text-align:center; line-height:1.6; }
+  footer a { color: rgba(234,252,255,.5); }
+
+  @media (prefers-reduced-motion: reduce) { #seaCanvas { /* animation paused in JS */ } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">Swell<b>.</b></div>
+    <div class="tag">UK surf forecast</div>
+  </header>
+
+  <div class="regions" id="regions"></div>
+
+  <select id="beach" aria-label="Choose a beach"></select>
+
+  <div class="hero">
+    <canvas id="seaCanvas"></canvas>
+    <div class="hero-read" id="heroRead" hidden>
+      <div class="big" id="heroH">–<span> m</span></div>
+      <div class="word" id="heroWord"></div>
+    </div>
+    <div class="hero-place" id="heroPlace"></div>
+    <div class="hero-state" id="heroState">Pick a beach to load the surf</div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="k">Swell</div><div class="v" id="sSwell">–<span class="u">m</span></div></div>
+    <div class="stat"><div class="k">Period</div><div class="v" id="sPeriod">–<span class="u">s</span></div></div>
+    <div class="stat"><div class="k">Direction</div><div class="v"><span class="arrow" id="sArrowG">↑</span> <span id="sDir">–</span></div></div>
+    <div class="stat"><div class="k">Water</div><div class="v" id="sWater">–<span class="u">°C</span></div></div>
+  </div>
+
+  <div class="wx" id="wx" hidden>
+    <div class="ico" id="wxIco"></div>
+    <div class="cond">
+      <div class="lbl" id="wxLbl">–</div>
+      <div class="sub" id="wxSub"></div>
+    </div>
+    <div class="temp">
+      <div class="now" id="wxNow">–°</div>
+      <div class="mm" id="wxMM"></div>
+    </div>
+  </div>
+
+  <h2>5-day outlook</h2>
+  <div class="forecast" id="forecast"></div>
+
+  <footer>
+    Wave and weather data from the <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> Marine &amp; Forecast APIs (CC BY 4.0).
+    A forecast guide only — not for navigation or safety decisions.
+  </footer>
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  // --- Curated UK surf beaches (approximate coordinates; API snaps to nearest marine cell) ---
+  const BEACHES = [
+    { name:"Fistral Beach, Newquay",        region:"SW England", lat:50.416, lon:-5.101 },
+    { name:"Watergate Bay, Cornwall",       region:"SW England", lat:50.443, lon:-5.044 },
+    { name:"Porthmeor, St Ives",            region:"SW England", lat:50.215, lon:-5.486 },
+    { name:"Croyde Bay, Devon",             region:"SW England", lat:51.130, lon:-4.240 },
+    { name:"Bantham, Devon",                region:"SW England", lat:50.282, lon:-3.880 },
+    { name:"Llangennith, Gower",            region:"Wales",      lat:51.597, lon:-4.290 },
+    { name:"Freshwater West, Pembrokeshire",region:"Wales",      lat:51.666, lon:-5.068 },
+    { name:"Rest Bay, Porthcawl",           region:"Wales",      lat:51.488, lon:-3.717 },
+    { name:"Saltburn, North Yorkshire",     region:"NE England", lat:54.584, lon:-0.974 },
+    { name:"Tynemouth Longsands",           region:"NE England", lat:55.018, lon:-1.422 },
+    { name:"Cayton Bay, Scarborough",       region:"NE England", lat:54.235, lon:-0.347 },
+    { name:"Thurso East, Caithness",        region:"Scotland",   lat:58.597, lon:-3.518 },
+    { name:"Pease Bay, Berwickshire",       region:"Scotland",   lat:55.929, lon:-2.343 },
+    { name:"Machrihanish, Kintyre",         region:"Scotland",   lat:55.425, lon:-5.732 }
+  ];
+  const REGIONS = ["All", ...Array.from(new Set(BEACHES.map(b => b.region)))];
+
+  const $ = id => document.getElementById(id);
+  let activeRegion = "All";
+
+  // --- Surf-scale wording (rough surf-report body-height convention) ---
+  function scaleWord(m){
+    if (m == null) return "";
+    if (m < 0.3) return "Flat";
+    if (m < 0.6) return "Knee high";
+    if (m < 1.0) return "Waist high";
+    if (m < 1.5) return "Chest high";
+    if (m < 2.0) return "Head high";
+    if (m < 3.0) return "Overhead";
+    return "Double overhead";
+  }
+  const DOW = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  function cardinal(deg){
+    if (deg == null) return "–";
+    const dirs = ["N","NE","E","SE","S","SW","W","NW"];
+    return dirs[Math.round(deg/45) % 8];
+  }
+
+  // --- WMO weather code -> category / label / icon ---
+  function wxCat(code){
+    if (code == null) return "cloud";
+    if (code <= 1) return "clear";
+    if (code === 2) return "partly";
+    if (code === 3 || code === 45 || code === 48) return "cloud";
+    if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) return "rain";
+    if ((code >= 71 && code <= 77) || code === 85 || code === 86) return "snow";
+    if (code >= 95) return "storm";
+    return "cloud";
+  }
+  function wxLabel(code){
+    const M = {
+      0:"Clear sky", 1:"Mainly clear", 2:"Partly cloudy", 3:"Overcast",
+      45:"Fog", 48:"Rime fog",
+      51:"Light drizzle", 53:"Drizzle", 55:"Heavy drizzle",
+      56:"Freezing drizzle", 57:"Freezing drizzle",
+      61:"Light rain", 63:"Rain", 65:"Heavy rain",
+      66:"Freezing rain", 67:"Freezing rain",
+      71:"Light snow", 73:"Snow", 75:"Heavy snow", 77:"Snow grains",
+      80:"Light showers", 81:"Showers", 82:"Heavy showers",
+      85:"Snow showers", 86:"Snow showers",
+      95:"Thunderstorm", 96:"Thunderstorm", 99:"Thunderstorm with hail"
+    };
+    return M[code] ?? "—";
+  }
+  // Compact inline SVG icon matching the app's drawn style.
+  function svgWx(cat, s, night){
+    const sun = '#ffd089', cloud = '#cdd9e1', rain = '#18c4b4', bolt = '#ffd089', moon = '#eafcff';
+    const open = '<svg width="'+s+'" height="'+s+'" viewBox="0 0 32 32" fill="none">';
+    const cloudPath = '<path d="M9 21 a5 5 0 0 1 0.6 -9.9 a6.5 6.5 0 0 1 12.4 1.9 a4.2 4.2 0 0 1 -0.6 8H9z" fill="'+cloud+'"/>';
+    if (cat === "clear"){
+      if (night) return open + '<path d="M22 20 a8 8 0 1 1 -8 -12 a6.5 6.5 0 0 0 8 12z" fill="'+moon+'"/></svg>';
+      let rays = "";
+      for (let i=0;i<8;i++){ const a=i*Math.PI/4, x1=16+8.5*Math.cos(a), y1=16+8.5*Math.sin(a), x2=16+11.5*Math.cos(a), y2=16+11.5*Math.sin(a);
+        rays += '<line x1="'+x1.toFixed(1)+'" y1="'+y1.toFixed(1)+'" x2="'+x2.toFixed(1)+'" y2="'+y2.toFixed(1)+'" stroke="'+sun+'" stroke-width="2" stroke-linecap="round"/>'; }
+      return open + rays + '<circle cx="16" cy="16" r="6" fill="'+sun+'"/></svg>';
+    }
+    if (cat === "partly")
+      return open + '<circle cx="12" cy="12" r="5" fill="'+sun+'"/>' + cloudPath + '</svg>';
+    if (cat === "rain")
+      return open + cloudPath +
+        '<line x1="12" y1="24" x2="10.5" y2="28" stroke="'+rain+'" stroke-width="2" stroke-linecap="round"/>' +
+        '<line x1="17" y1="24" x2="15.5" y2="28" stroke="'+rain+'" stroke-width="2" stroke-linecap="round"/>' +
+        '<line x1="22" y1="24" x2="20.5" y2="28" stroke="'+rain+'" stroke-width="2" stroke-linecap="round"/></svg>';
+    if (cat === "snow")
+      return open + cloudPath +
+        '<circle cx="11" cy="26" r="1.4" fill="'+moon+'"/><circle cx="16" cy="27" r="1.4" fill="'+moon+'"/><circle cx="21" cy="26" r="1.4" fill="'+moon+'"/></svg>';
+    if (cat === "storm")
+      return open + cloudPath +
+        '<path d="M16 23 l-3 5 h3 l-2 4 l6 -6 h-3 l2 -3z" fill="'+bolt+'"/></svg>';
+    return open + cloudPath + '</svg>';   // cloud / fog
+  }
+
+  // --- Build region pills + beach select ---
+  function renderRegions(){
+    const r = $("regions"); r.innerHTML = "";
+    REGIONS.forEach(rg => {
+      const b = document.createElement("button");
+      b.className = "pill"; b.textContent = rg;
+      b.setAttribute("aria-pressed", rg === activeRegion);
+      b.onclick = () => { activeRegion = rg; renderRegions(); renderBeachOptions(); };
+      r.appendChild(b);
+    });
+  }
+  function renderBeachOptions(){
+    const sel = $("beach"); sel.innerHTML = "";
+    const ph = document.createElement("option");
+    ph.value = ""; ph.textContent = "Choose a beach…"; ph.disabled = true; ph.selected = true;
+    sel.appendChild(ph);
+    BEACHES.filter(b => activeRegion === "All" || b.region === activeRegion)
+      .forEach((b, i) => {
+        const o = document.createElement("option");
+        o.value = BEACHES.indexOf(b); o.textContent = b.name;
+        sel.appendChild(o);
+      });
+  }
+  $("beach").addEventListener("change", e => { if (e.target.value !== "") loadBeach(BEACHES[+e.target.value]); });
+
+  // --- Fetch + render ---
+  let lastMarine = null, lastWx = null;
+
+  async function loadBeach(b){
+    setState("Loading surf at " + b.name + "…");
+    $("heroPlace").textContent = b.name;
+    lastMarine = null; lastWx = null;
+    $("wx").hidden = true;
+
+    const marineU = "https://marine-api.open-meteo.com/v1/marine?latitude=" + b.lat + "&longitude=" + b.lon +
+      "&current=wave_height,wave_period,wave_direction,swell_wave_height,sea_surface_temperature" +
+      "&daily=wave_height_max,wave_period_max,wave_direction_dominant" +
+      "&timezone=auto&forecast_days=5";
+    const wxU = "https://api.open-meteo.com/v1/forecast?latitude=" + b.lat + "&longitude=" + b.lon +
+      "&current=temperature_2m,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m,is_day" +
+      "&daily=weather_code,temperature_2m_max,temperature_2m_min" +
+      "&timezone=auto&forecast_days=5";
+
+    try {
+      const [mRes, wRes] = await Promise.all([fetch(marineU), fetch(wxU)]);
+      if (!mRes.ok) throw new Error("marine HTTP " + mRes.status);
+      renderSurf(await mRes.json());
+      if (wRes.ok) renderWeather(await wRes.json());  // weather is best-effort; surf is primary
+    } catch (err) {
+      setState("Couldn't load the forecast — check your connection and try again.");
+      console.error(err);
+    }
+  }
+
+  function renderSurf(d){
+    lastMarine = d;
+    const c = d.current || {};
+    const h = c.wave_height;
+    targetWave = (typeof h === "number") ? h : 0;   // drive the animation
+    $("heroRead").hidden = false;
+    setState("");
+    $("heroH").innerHTML = (h?.toFixed(1) ?? "–") + "<span> m</span>";
+    $("heroWord").textContent = scaleWord(h);
+
+    $("sSwell").innerHTML  = (c.swell_wave_height?.toFixed(1) ?? "–") + '<span class="u">m</span>';
+    $("sPeriod").innerHTML = (Math.round(c.wave_period) || "–") + '<span class="u">s</span>';
+    $("sDir").textContent  = cardinal(c.wave_direction);
+    if (typeof c.wave_direction === "number")
+      $("sArrowG").style.transform = "rotate(" + (c.wave_direction + 180) + "deg)";
+    $("sWater").innerHTML  = (c.sea_surface_temperature != null ? Math.round(c.sea_surface_temperature) : "–") + '<span class="u">°C</span>';
+
+    renderForecast();
+  }
+
+  function renderWeather(d){
+    lastWx = d;
+    const c = d.current || {};
+    const cat = wxCat(c.weather_code), night = c.is_day === 0;
+    $("wx").hidden = false;
+    $("wxIco").innerHTML = svgWx(cat, 52, night);
+    $("wxLbl").textContent = wxLabel(c.weather_code);
+    $("wxNow").textContent = (c.temperature_2m != null ? Math.round(c.temperature_2m) : "–") + "°";
+
+    const wind = c.wind_speed_10m != null ? Math.round(c.wind_speed_10m) : null;
+    const gust = c.wind_gusts_10m != null ? Math.round(c.wind_gusts_10m) : null;
+    let sub = "";
+    if (wind != null){
+      sub = '<span class="arrow" style="display:inline-block;transform:rotate(' +
+        ((c.wind_direction_10m ?? 0) + 180) + 'deg)">↑</span> ' +
+        wind + " km/h from " + cardinal(c.wind_direction_10m);
+      if (gust != null) sub += " · gusts " + gust;
+    }
+    $("wxSub").innerHTML = sub;
+    renderForecast();
+  }
+
+  // Build day cards from whichever datasets have arrived (marine drives, weather augments).
+  function renderForecast(){
+    if (!lastMarine) return;
+    const f = $("forecast"); f.innerHTML = "";
+    const day = lastMarine.daily || {};
+    const wd = lastWx && lastWx.daily ? lastWx.daily : {};
+    (day.time || []).forEach((t, i) => {
+      const hm  = day.wave_height_max?.[i];
+      const dir = day.wave_direction_dominant?.[i];
+      const dow = DOW[new Date(t).getDay()];
+      const code = wd.weather_code?.[i];
+      const tmax = wd.temperature_2m_max?.[i];
+      const tmin = wd.temperature_2m_min?.[i];
+      const icon = (code != null) ? svgWx(wxCat(code), 22, false) : "";
+      const temp = (tmax != null)
+        ? '<div class="temp">' + Math.round(tmax) + '° <span>' + Math.round(tmin) + '°</span></div>' : "";
+      const card = document.createElement("div");
+      card.className = "day";
+      card.innerHTML =
+        '<div class="dow">' + dow + '<span class="dayicon">' + icon + '</span></div>' +
+        dayGlyph(hm, dir) +
+        '<div class="h">' + (hm?.toFixed(1) ?? "–") + '<span> m</span></div>' +
+        '<div class="w">' + scaleWord(hm) + '</div>' +
+        temp;
+      f.appendChild(card);
+    });
+  }
+
+  // Small SVG wave glyph whose crest height scales with the day's wave height
+  function dayGlyph(m, dir){
+    const W = 46, H = 34, base = H - 4;
+    const amp = Math.max(3, Math.min(base - 3, (m || 0) / 4 * (base - 3))); // 4 m ~ full height
+    const big = (m || 0) >= 2;
+    const col = big ? "#ff7a59" : "#18c4b4";
+    const y = base - amp;
+    const d = "M0," + base +
+      " Q" + (W*0.25) + "," + (y - amp*0.4) + " " + (W*0.5) + "," + y +
+      " Q" + (W*0.75) + "," + (y + amp*0.4) + " " + W + "," + (base - amp*0.5) +
+      " L" + W + "," + H + " L0," + H + " Z";
+    return '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '">' +
+      '<path d="' + d + '" fill="' + col + '" opacity="0.85"/>' +
+      '<path d="M0,' + base + ' Q' + (W*0.25) + ',' + (y - amp*0.4) + ' ' + (W*0.5) + ',' + y +
+        ' Q' + (W*0.75) + ',' + (y + amp*0.4) + ' ' + W + ',' + (base - amp*0.5) +
+        '" fill="none" stroke="#eafcff" stroke-width="1.5" stroke-linecap="round"/>' +
+      '</svg>';
+  }
+
+  function setState(msg){
+    const s = $("heroState");
+    s.textContent = msg; s.style.display = msg ? "flex" : "none";
+  }
+
+  // --- Animated hero sea; front-wave amplitude tracks live wave height vs a surfer for scale ---
+  const cv = $("seaCanvas"), ctx = cv.getContext("2d");
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let DPR = 1, CW = 0, CH = 0;
+  let targetWave = 0, shownWave = 0;
+  const SURFER_PX = 46;            // rider height in px (no longer a scale ruler)
+  const PXPM = 32;                 // wave height metres -> crest px
+  let surferX = -30;               // rides left -> right, then wraps
+  let lastT = 0;
+
+  function sizeCanvas(){
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    CW = cv.clientWidth; CH = cv.clientHeight;
+    cv.width = CW * DPR; cv.height = CH * DPR;
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+  }
+
+  // Drawn at a pivot on the wave surface (x,y), rotated to the wave's slope.
+  function drawSurfer(x, y, angle){
+    const H = SURFER_PX;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(angle);
+    // board along the wave tangent
+    ctx.fillStyle = "rgba(255,208,137,.95)";
+    ctx.beginPath(); ctx.ellipse(0, 0, 20, 4, 0, 0, 7); ctx.fill();
+    // crouched stance, leaning into the direction of travel (+x)
+    ctx.strokeStyle = "rgba(234,252,255,.92)";
+    ctx.lineWidth = 3; ctx.lineCap = "round";
+    const hipX = 3,  hipY = -H*0.45;
+    const shX  = 7,  shY  = -H*0.78;
+    ctx.beginPath(); ctx.moveTo(-7,0); ctx.lineTo(hipX,hipY); ctx.stroke();   // back leg
+    ctx.beginPath(); ctx.moveTo(9,0);  ctx.lineTo(hipX,hipY); ctx.stroke();   // front leg
+    ctx.beginPath(); ctx.moveTo(hipX,hipY); ctx.lineTo(shX,shY); ctx.stroke();// torso
+    ctx.beginPath(); ctx.moveTo(shX,shY); ctx.lineTo(shX-15, shY+3); ctx.stroke(); // trailing arm
+    ctx.beginPath(); ctx.moveTo(shX,shY); ctx.lineTo(shX+13, shY-6); ctx.stroke(); // leading arm
+    ctx.fillStyle = "rgba(234,252,255,.95)";
+    ctx.beginPath(); ctx.arc(shX+2, shY-7, 6, 0, 7); ctx.fill();              // head
+    ctx.restore();
+  }
+
+  function frame(now){
+    const t = now / 1000;
+    const dt = Math.min((now - lastT) / 1000, 0.05); lastT = now;
+    shownWave += (targetWave - shownWave) * 0.06;   // ease toward live value
+    ctx.clearRect(0,0,CW,CH);
+
+    const baseY = CH * 0.78;                          // still-water line
+    let crest = shownWave * PXPM;                     // metres -> px
+    crest = Math.min(crest, CH * 0.52);               // clamp for display
+
+    // back glow / sky
+    const sky = ctx.createLinearGradient(0,0,0,baseY);
+    sky.addColorStop(0,"#06243d"); sky.addColorStop(1,"#0a3a5c");
+    ctx.fillStyle = sky; ctx.fillRect(0,0,CW,baseY);
+
+    // layered waves (back -> front); front carries the live amplitude
+    const layers = [
+      { amp: crest*0.45 + 4, k: 0.012, sp: 0.7, col:"rgba(10,58,92,.9)",  off: baseY+14 },
+      { amp: crest*0.72 + 5, k: 0.016, sp: 1.1, col:"rgba(14,120,140,.92)", off: baseY+6 },
+      { amp: crest + 6,      k: 0.020, sp: 1.6, col: shownWave>=2 ? "#13708a" : "#0f9aa0", off: baseY }
+    ];
+    layers.forEach((L, idx) => {
+      ctx.beginPath();
+      ctx.moveTo(0, CH);
+      for (let x = 0; x <= CW; x += 6){
+        const y = L.off - L.amp * Math.sin(L.k * x + (reduce ? 0 : t * L.sp));
+        ctx.lineTo(x, y);
+      }
+      ctx.lineTo(CW, CH); ctx.closePath();
+      const g = ctx.createLinearGradient(0, L.off - L.amp, 0, CH);
+      g.addColorStop(0, L.col); g.addColorStop(1, "#04111f");
+      ctx.fillStyle = g; ctx.fill();
+      if (idx === layers.length - 1){
+        ctx.beginPath();
+        for (let x = 0; x <= CW; x += 6){
+          const y = L.off - L.amp * Math.sin(L.k * x + (reduce ? 0 : t * L.sp));
+          x === 0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+        }
+        ctx.strokeStyle = "rgba(234,252,255,.7)"; ctx.lineWidth = 2; ctx.stroke();
+      }
+    });
+
+    // --- surfer rides the front wave ---
+    const fr = layers[layers.length - 1];
+    if (reduce) { surferX = CW * 0.45; }
+    else { surferX += 70 * dt; if (surferX > CW + 30) surferX = -30; }
+    const ph = reduce ? 0 : t * fr.sp;
+    const surfY = fr.off - fr.amp * Math.sin(fr.k * surferX + ph);
+    const slope = -fr.amp * fr.k * Math.cos(fr.k * surferX + ph);  // dy/dx of the wave
+    drawSurfer(surferX, surfY, Math.atan(slope));
+
+    if (!reduce) requestAnimationFrame(frame);
+  }
+
+  // --- init ---
+  function init(){
+    renderRegions(); renderBeachOptions(); sizeCanvas();
+    if (reduce) frame(0); else requestAnimationFrame(frame);
+  }
+  window.addEventListener("resize", () => { sizeCanvas(); if (reduce) frame(0); });
+  init();
+
+  if ("serviceWorker" in navigator){
+    window.addEventListener("load", () => navigator.serviceWorker.register("./service-worker.js").catch(()=>{}));
+  }
+})();
+</script>
+</body>
+</html>
