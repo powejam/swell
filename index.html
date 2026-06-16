@@ -111,7 +111,6 @@
   footer { margin-top: 26px; font-size: 11px; color: rgba(234,252,255,.35); text-align:center; line-height:1.6; }
   footer a { color: rgba(234,252,255,.5); }
 
-  @media (prefers-reduced-motion: reduce) { #seaCanvas { /* animation paused in JS */ } }
 </style>
 </head>
 <body>
@@ -411,7 +410,6 @@
 
   // --- Animated hero sea; front-wave amplitude tracks live wave height vs a surfer for scale ---
   const cv = $("seaCanvas"), ctx = cv.getContext("2d");
-  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   let DPR = 1, CW = 0, CH = 0;
   let targetWave = 0, shownWave = 0;
   const SURFER_PX = 46;            // rider height in px (no longer a scale ruler)
@@ -475,7 +473,7 @@
       ctx.beginPath();
       ctx.moveTo(0, CH);
       for (let x = 0; x <= CW; x += 6){
-        const y = L.off - L.amp * Math.sin(L.k * x + (reduce ? 0 : t * L.sp));
+        const y = L.off - L.amp * Math.sin(L.k * x + t * L.sp);
         ctx.lineTo(x, y);
       }
       ctx.lineTo(CW, CH); ctx.closePath();
@@ -485,7 +483,7 @@
       if (idx === layers.length - 1){
         ctx.beginPath();
         for (let x = 0; x <= CW; x += 6){
-          const y = L.off - L.amp * Math.sin(L.k * x + (reduce ? 0 : t * L.sp));
+          const y = L.off - L.amp * Math.sin(L.k * x + t * L.sp);
           x === 0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
         }
         ctx.strokeStyle = "rgba(234,252,255,.7)"; ctx.lineWidth = 2; ctx.stroke();
@@ -494,22 +492,21 @@
 
     // --- surfer rides the front wave ---
     const fr = layers[layers.length - 1];
-    if (reduce) { surferX = CW * 0.45; }
-    else { surferX += 70 * dt; if (surferX > CW + 30) surferX = -30; }
-    const ph = reduce ? 0 : t * fr.sp;
+    surferX += 70 * dt; if (surferX > CW + 30) surferX = -30;
+    const ph = t * fr.sp;
     const surfY = fr.off - fr.amp * Math.sin(fr.k * surferX + ph);
     const slope = -fr.amp * fr.k * Math.cos(fr.k * surferX + ph);  // dy/dx of the wave
     drawSurfer(surferX, surfY, Math.atan(slope));
 
-    if (!reduce) requestAnimationFrame(frame);
+    requestAnimationFrame(frame);
   }
 
   // --- init ---
   function init(){
     renderRegions(); renderBeachOptions(); sizeCanvas();
-    if (reduce) frame(0); else requestAnimationFrame(frame);
+    requestAnimationFrame(frame);
   }
-  window.addEventListener("resize", () => { sizeCanvas(); if (reduce) frame(0); });
+  window.addEventListener("resize", sizeCanvas);
   init();
 
   if ("serviceWorker" in navigator){
