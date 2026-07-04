@@ -94,8 +94,10 @@
   .stat .k { font-size:10px; letter-spacing:2px; text-transform:uppercase; color:rgba(234,252,255,.45); }
   .stat .v { font-size:24px; font-weight:800; margin-top:4px; }
   .stat .u { font-size:13px; font-weight:600; color:rgba(234,252,255,.55); }
-  .stat .face { margin-top:6px; min-height:24px; display:flex; align-items:center; justify-content:center; }
+  .stat .face { margin-top:8px; min-height:38px; display:flex; align-items:center; justify-content:center; }
   .stat .face svg { display:block; }
+  .stat .wind2 { font-size:11px; font-weight:700; color:rgba(234,252,255,.62); margin-top:4px; white-space:nowrap; }
+  .stat .wind2 .warrow { color: var(--sun); }
   .arrow { display:inline-block; transition: transform .4s; color: var(--teal); }
 
   /* live/updating/offline status line */
@@ -156,10 +158,10 @@
   </div>
 
   <div class="stats">
-    <div class="stat"><div class="k">Swell</div><div class="v" id="sSwell">–<span class="u">m</span></div></div>
-    <div class="stat"><div class="k">Period</div><div class="v" id="sPeriod">–<span class="u">s</span></div><div class="face" id="sFace"></div></div>
-    <div class="stat"><div class="k">Direction</div><div class="v"><span class="arrow" id="sArrowG">↑</span> <span id="sDir">–</span></div></div>
-    <div class="stat"><div class="k">Water</div><div class="v" id="sWater">–<span class="u">°C</span></div></div>
+    <div class="stat"><div class="k">Swell</div><div class="v" id="sSwell">–<span class="u">m</span></div><div class="face" id="faceSwell"></div></div>
+    <div class="stat"><div class="k">Period</div><div class="v" id="sPeriod">–<span class="u">s</span></div><div class="face" id="facePeriod"></div></div>
+    <div class="stat"><div class="k">Direction</div><div class="v"><span class="arrow" id="sArrowG">↑</span> <span id="sDir">–</span></div><div class="wind2" id="sWind"></div><div class="face" id="faceDir"></div></div>
+    <div class="stat"><div class="k">Water</div><div class="v" id="sWater">–<span class="u">°C</span></div><div class="face" id="faceWater"></div></div>
   </div>
 
   <div class="status" id="status" hidden>
@@ -187,7 +189,7 @@
   //   DEPLOYED:    date of this push, YYYY-MM-DD.
   // No build step / no package.json — the version is simply baked into this file.
   // ===========================================================================
-  const APP_VERSION = "1.1.1";
+  const APP_VERSION = "1.1.2";
   const DEPLOYED    = "2026-07-04";
 
   // --- Curated surf beaches (approximate coordinates; API snaps to nearest marine cell) ---
@@ -232,7 +234,7 @@
   //   commit, push — no other edits needed.
   // BIG_SURF_M: at/above this the waves shift to a deeper "proper surf" colour
   //   (hero front wave + forecast day glyphs). Purely cosmetic.
-  const MAX_WAVE_M = 3;
+  const MAX_WAVE_M = 5;
   const BIG_SURF_M = 2;
   // ---------------------------------------------------------------------------
 
@@ -265,48 +267,68 @@
     return 2 * R * Math.asin(Math.sqrt(a));
   }
 
-  // --- Wave period -> surf-quality hint (long-period groundswell surfs cleaner than short windswell) ---
-  const PERIOD_LABEL = [
-    "Short-period windswell — likely choppy, weaker surf",
-    "Medium period — decent, workable surf",
-    "Long-period groundswell — clean, powerful surf"
+  // --- Per-metric quality (0 poor, 1 ok, 2 stoked) -> drives each surfer's expression ---
+  function qSwell(m){ if (m == null || isNaN(m)) return 1; if (m < 0.5) return 0; if (m < 1.5) return 1; return 2; }  // more swell = better
+  function qPeriod(p){ if (p == null || isNaN(p)) return 1; if (p < 8) return 0; if (p < 11) return 1; return 2; }    // long-period groundswell = cleaner
+  function qWater(t){ if (t == null || isNaN(t)) return 1; if (t < 14) return 0; if (t < 20) return 1; return 2; }    // warmer = comfier
+  function qWind(s){ if (s == null || isNaN(s)) return 1; if (s > 30) return 0; if (s > 18) return 1; return 2; }     // light wind = clean conditions
+
+  const FACE_TITLE = [
+    ["Small swell — not much to work with", "Rideable swell", "Solid swell running"],
+    ["Short-period windswell — choppy, weak", "Medium period — workable", "Long-period groundswell — clean & powerful"],
+    ["Windy — likely blown out", "Some wind about", "Light wind — clean conditions"],
+    ["Cold — bring a good wetsuit", "Cool water", "Warm water — boardies weather"]
   ];
-  function periodLevel(p){
-    if (p == null || isNaN(p)) return -1;
-    if (p < 8)  return 0;   // windswell
-    if (p < 11) return 1;   // decent
-    return 2;               // clean groundswell
-  }
-  // Little hand-drawn surfer characters for each quality level. It's meant to be fun.
-  function surfFace(level){
+
+  // Four hand-drawn surfer characters (one per stat box); each one's expression tracks its metric.
+  function surfChar(id, mood){
     const skin = "#e8b06a", ink = "#231407";
-    const o = '<svg width="24" height="24" viewBox="0 0 30 30" fill="none">';
-    if (level === 0)  // bummed long-haired dude
+    const o = '<svg width="34" height="34" viewBox="0 0 30 30" fill="none">';
+    const head = '<circle cx="15" cy="15" r="7.5" fill="'+skin+'"/>';
+    const eyes = '<circle cx="12" cy="14.5" r="1" fill="'+ink+'"/><circle cx="18" cy="14.5" r="1" fill="'+ink+'"/>';
+    const mouth = mood >= 2
+      ? '<path d="M11 18.5 Q15 22 19 18.5" stroke="'+ink+'" stroke-width="1.6" stroke-linecap="round" fill="none"/>'    // grin
+      : mood === 1
+      ? '<path d="M11.5 19.6 L18.5 19.6" stroke="'+ink+'" stroke-width="1.6" stroke-linecap="round"/>'                 // meh
+      : '<path d="M11 20.6 Q15 17.2 19 20.6" stroke="'+ink+'" stroke-width="1.6" stroke-linecap="round" fill="none"/>';// frown
+    if (id === 0)  // Swell — dude in shades
       return o +
-        '<path d="M6 26 Q5 16 5 13 Q5 4 15 4 Q25 4 25 13 Q25 16 24 26 L21 26 Q22 18 22 14 Q22 9 15 9 Q8 9 8 14 Q8 18 9 26 Z" fill="#5b3b20"/>' +
-        '<circle cx="15" cy="14" r="7.5" fill="'+skin+'"/>' +
-        '<path d="M10 12.4 L13 13.6" stroke="'+ink+'" stroke-width="1.2" stroke-linecap="round"/>' +
-        '<path d="M20 12.4 L17 13.6" stroke="'+ink+'" stroke-width="1.2" stroke-linecap="round"/>' +
-        '<circle cx="12" cy="15" r="0.9" fill="'+ink+'"/><circle cx="18" cy="15" r="0.9" fill="'+ink+'"/>' +
-        '<path d="M11 20.5 Q15 17.5 19 20.5" stroke="'+ink+'" stroke-width="1.4" stroke-linecap="round" fill="none"/></svg>';
-    if (level === 1)  // stoked surfer girl with a hibiscus
+        '<path d="M7 12 Q6 4 15 4 Q24 4 23 12 Q20 8.5 15 8.5 Q10 8.5 7 12 Z" fill="#3a2714"/>' + head +
+        '<rect x="8" y="12" width="6" height="4" rx="1.3" fill="#04111f"/>' +
+        '<rect x="16" y="12" width="6" height="4" rx="1.3" fill="#04111f"/>' +
+        '<path d="M14 13.7 L16 13.7" stroke="#04111f" stroke-width="1.2" stroke-linecap="round"/>' + mouth + '</svg>';
+    if (id === 1)  // Period — surfer girl with a hibiscus
       return o +
         '<path d="M6 22 Q5 15 5 13 Q5 4 15 4 Q25 4 25 13 Q25 15 24 22 Q23 16 22 14 Q22 9 15 9 Q8 9 8 14 Q7 16 6 22 Z" fill="#7a4a22"/>' +
-        '<circle cx="15" cy="15" r="7.5" fill="'+skin+'"/>' +
-        '<circle cx="12" cy="14.5" r="1" fill="'+ink+'"/><circle cx="18" cy="14.5" r="1" fill="'+ink+'"/>' +
-        '<path d="M11.5 18 Q15 21.5 18.5 18" stroke="'+ink+'" stroke-width="1.4" stroke-linecap="round" fill="none"/>' +
+        head + eyes + mouth +
         '<g transform="translate(23.5,9)">' +
           '<circle cx="0" cy="-2.6" r="1.7" fill="#ff7a59"/><circle cx="2.5" cy="-0.8" r="1.7" fill="#ff7a59"/>' +
           '<circle cx="1.5" cy="2.1" r="1.7" fill="#ff7a59"/><circle cx="-1.5" cy="2.1" r="1.7" fill="#ff7a59"/>' +
-          '<circle cx="-2.5" cy="-0.8" r="1.7" fill="#ff7a59"/><circle cx="0" cy="0" r="1.3" fill="'+skin+'"/></g></svg>';
-    // level 2 — clean shades dude, big grin
+          '<circle cx="-2.5" cy="-0.8" r="1.7" fill="#ff7a59"/><circle cx="0" cy="0" r="1.3" fill="#ffd089"/></g></svg>';
+    if (id === 2)  // Direction — long-haired dude with a headband
+      return o +
+        '<path d="M6 26 Q5 16 5 13 Q5 4 15 4 Q25 4 25 13 Q25 16 24 26 L21 26 Q22 18 22 14 Q22 9 15 9 Q8 9 8 14 Q8 18 9 26 Z" fill="#8a5a2c"/>' +
+        head +
+        '<rect x="7" y="9.8" width="16" height="2.6" rx="1.3" fill="#18c4b4"/>' +
+        eyes + mouth + '</svg>';
+    // id 3 — Water — beanie grommet (cold-water ready)
     return o +
-      '<path d="M7 12 Q6 4 15 4 Q24 4 23 12 Q20 8.5 15 8.5 Q10 8.5 7 12 Z" fill="#3a2714"/>' +
-      '<circle cx="15" cy="15" r="7.5" fill="'+skin+'"/>' +
-      '<rect x="8.5" y="12.5" width="5.5" height="4" rx="1.3" fill="#04111f"/>' +
-      '<rect x="16" y="12.5" width="5.5" height="4" rx="1.3" fill="#04111f"/>' +
-      '<path d="M14 13.6 L16 13.6" stroke="#04111f" stroke-width="1.2" stroke-linecap="round"/>' +
-      '<path d="M11 19 Q15 23 19 19" stroke="'+ink+'" stroke-width="1.6" stroke-linecap="round" fill="none"/></svg>';
+      '<circle cx="15" cy="4.4" r="1.6" fill="#ffd089"/>' +
+      '<path d="M6.5 12.5 Q6.5 4.5 15 4.5 Q23.5 4.5 23.5 12.5 Z" fill="#ff7a59"/>' +
+      head +
+      '<rect x="6" y="10.5" width="18" height="3" rx="1.5" fill="#e0512f"/>' +
+      eyes + mouth + '</svg>';
+  }
+
+  // Paint all four box characters from the latest data (neutral before data arrives).
+  function updateFaces(){
+    const c = (lastMarine && lastMarine.current) || {};
+    const w = (lastWx && lastWx.current) || {};
+    const set = (elId, id, mood) => { const el = $(elId); if (!el) return; el.innerHTML = surfChar(id, mood); el.title = FACE_TITLE[id][mood]; };
+    set("faceSwell",  0, qSwell(c.swell_wave_height != null ? c.swell_wave_height : c.wave_height));
+    set("facePeriod", 1, qPeriod(c.wave_period));
+    set("faceDir",    2, qWind(w.wind_speed_10m));
+    set("faceWater",  3, qWater(c.sea_surface_temperature));
   }
 
   // --- WMO weather code -> category / label / icon ---
@@ -435,6 +457,7 @@
     } else {
       lastMarine = null; lastWx = null;
       $("wxBadge").hidden = true;
+      $("sWind").textContent = "";
       setState("Loading surf at " + b.name + "…");
       setStatus("updating", null);
     }
@@ -493,16 +516,13 @@
 
     $("sSwell").innerHTML  = (c.swell_wave_height?.toFixed(1) ?? "–") + '<span class="u">m</span>';
     $("sPeriod").innerHTML = (Math.round(c.wave_period) || "–") + '<span class="u">s</span>';
-    const lvl = periodLevel(c.wave_period);
-    const face = $("sFace");
-    if (lvl >= 0){ face.innerHTML = surfFace(lvl); face.title = PERIOD_LABEL[lvl]; }
-    else { face.innerHTML = ""; face.removeAttribute("title"); }
 
     $("sDir").textContent  = cardinal(c.wave_direction);
     if (typeof c.wave_direction === "number")
       $("sArrowG").style.transform = "rotate(" + (c.wave_direction + 180) + "deg)";
     $("sWater").innerHTML  = (c.sea_surface_temperature != null ? Math.round(c.sea_surface_temperature) : "–") + '<span class="u">°C</span>';
 
+    updateFaces();
     renderForecast();
   }
 
@@ -525,6 +545,15 @@
       if (gust != null) sub += " · gusts " + gust;
     }
     $("wxSub").innerHTML = sub;
+
+    // Wind speed also echoed in the Direction stat box (distinct sun-coloured arrow = wind, vs teal = swell).
+    const wEl = $("sWind");
+    if (wind != null){
+      wEl.innerHTML = '<span class="warrow arrow" style="transform:rotate(' +
+        ((c.wind_direction_10m ?? 0) + 180) + 'deg)">↑</span> ' + wind + ' km/h';
+    } else wEl.textContent = "";
+
+    updateFaces();       // wind just arrived — refresh the Direction character's mood
     renderForecast();
   }
 
@@ -625,22 +654,26 @@
     shownWave += (targetWave - shownWave) * 0.06;   // ease toward live value
     ctx.clearRect(0,0,CW,CH);
 
-    const baseY = CH * 0.78;                          // still-water line
-    // Map wave height -> crest px, clamped so MAX_WAVE_M reaches the top with headroom for the surfer.
-    const wm = Math.min(shownWave, MAX_WAVE_M);
-    const maxCrest = Math.max(10, baseY - (SURFER_PX + 14));
-    const crest = (wm / MAX_WAVE_M) * maxCrest;
+    // Wave surface stays fully within the window: a symmetric swell around a
+    // mid-line, amplitude scaled so MAX_WAVE_M fills the window top-to-bottom —
+    // crest near the top (with surfer headroom), trough just off the bottom.
+    const topHead = SURFER_PX + 8;                    // headroom for the surfer at the crest
+    const botPad  = 6;                                // keep troughs off the very bottom edge
+    const midY    = (topHead + (CH - botPad)) / 2;    // still-water line
+    const maxAmp  = (CH - botPad - topHead) / 2;      // amplitude at MAX_WAVE_M
+    const wm      = Math.min(shownWave, MAX_WAVE_M);
+    const amp0    = (wm / MAX_WAVE_M) * maxAmp;        // front-wave amplitude at this height
 
-    // back glow / sky
-    const sky = ctx.createLinearGradient(0,0,0,baseY);
+    // sky
+    const sky = ctx.createLinearGradient(0,0,0,CH);
     sky.addColorStop(0,"#06243d"); sky.addColorStop(1,"#0a3a5c");
-    ctx.fillStyle = sky; ctx.fillRect(0,0,CW,baseY);
+    ctx.fillStyle = sky; ctx.fillRect(0,0,CW,CH);
 
     // layered waves (back -> front); front carries the live amplitude
     const layers = [
-      { amp: crest*0.45 + 4, k: 0.012, sp: 0.7, col:"rgba(10,58,92,.9)",  off: baseY+14 },
-      { amp: crest*0.72 + 5, k: 0.016, sp: 1.1, col:"rgba(14,120,140,.92)", off: baseY+6 },
-      { amp: crest + 6,      k: 0.020, sp: 1.6, col: shownWave>=BIG_SURF_M ? "#13708a" : "#0f9aa0", off: baseY }
+      { amp: amp0*0.5,  k: 0.012, sp: 0.7, col:"rgba(10,58,92,.9)",    off: midY+10 },
+      { amp: amp0*0.75, k: 0.016, sp: 1.1, col:"rgba(14,120,140,.92)", off: midY+5 },
+      { amp: amp0,      k: 0.020, sp: 1.6, col: shownWave>=BIG_SURF_M ? "#13708a" : "#0f9aa0", off: midY }
     ];
     layers.forEach((L, idx) => {
       ctx.beginPath();
@@ -706,7 +739,7 @@
   // --- init ---
   function init(){
     stampFooter();
-    renderRegions(); renderBeachOptions(); sizeCanvas();
+    renderRegions(); renderBeachOptions(); updateFaces(); sizeCanvas();
     requestAnimationFrame(frame);
     geolocate();
   }
