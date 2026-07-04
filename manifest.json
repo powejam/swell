@@ -1,7 +1,7 @@
 {
-  "name": "Swell — UK surf forecast",
+  "name": "Swell — surf forecast",
   "short_name": "Swell",
-  "description": "Live wave and swell forecast for UK surf beaches.",
+  "description": "Live wave and swell forecast for surf beaches in the UK, Europe, Sri Lanka and Hawaii.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

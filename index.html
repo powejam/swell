@@ -7,8 +7,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="description" content="Live wave and swell forecast for UK surf beaches.">
-<title>Swell — UK surf forecast</title>
+<meta name="description" content="Live wave and swell forecast for surf beaches in the UK, Europe, Sri Lanka and Hawaii.">
+<title>Swell — surf forecast</title>
 <link rel="manifest" href="./manifest.json">
 <style>
   :root {
@@ -20,6 +20,9 @@
     --coral: #ff7a59;
     --glass: rgba(234,252,255,.08);
     --hair:  rgba(234,252,255,.14);
+    --live:  #3ddc84;
+    --warn:  #ffab40;
+    --stale: #ff5a5a;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { margin:0; min-height:100%; }
@@ -65,22 +68,44 @@
     background: linear-gradient(180deg, #06243d, #04111f);
   }
   #seaCanvas { display:block; width:100%; height: 230px; }
-  .hero-read {
-    position:absolute; left:18px; top:16px; z-index:2;
-  }
+  .hero-read { position:absolute; left:18px; top:16px; z-index:2; text-shadow: 0 1px 4px rgba(4,17,31,.7); }
   .hero-read .big { font-size: 56px; font-weight: 800; line-height:.9; letter-spacing:-2px; }
   .hero-read .big span { font-size: 22px; font-weight:600; color:rgba(234,252,255,.6); }
   .hero-read .word { font-size: 18px; font-style: italic; font-weight: 700; color: var(--sun); margin-top: 4px; }
-  .hero-place { position:absolute; right:18px; top:16px; z-index:2; text-align:right; font-size:13px; color:rgba(234,252,255,.6); max-width:50%; }
-  .hero-state { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; z-index:3; font-size:14px; color:rgba(234,252,255,.7); }
+
+  /* top-right stack: weather badge, then place name below it */
+  .hero-tr { position:absolute; right:14px; top:14px; z-index:2; max-width:64%;
+             display:flex; flex-direction:column; align-items:flex-end; gap:8px; text-align:right; }
+  .wxBadge { background: rgba(4,17,31,.42); border:1px solid var(--hair); border-radius:14px;
+             padding:8px 11px; backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
+  .wxBadge .wxTop { display:flex; align-items:center; justify-content:flex-end; gap:8px; }
+  .wxBadge .wxTop .wxIco svg { display:block; }
+  .wxBadge .wxNow { font-size:30px; font-weight:800; letter-spacing:-1px; line-height:1; }
+  .wxBadge .wxLbl { font-size:12px; font-weight:700; margin-top:5px; color:rgba(234,252,255,.9); }
+  .wxBadge .wxSub { font-size:11px; color:rgba(234,252,255,.62); margin-top:2px; }
+  .wxBadge .wxSub .arrow { color:var(--teal); display:inline-block; }
+  .hero-place { font-size:13px; font-weight:700; color:var(--foam); text-shadow:0 1px 3px rgba(4,17,31,.8); }
+  .hero-place .place-region { display:block; font-size:11px; font-weight:600; color:rgba(234,252,255,.6); margin-top:1px; }
+  .hero-state { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; z-index:3; font-size:14px; color:rgba(234,252,255,.7); padding:0 16px; text-align:center; }
 
   /* current stats */
-  .stats { display:grid; grid-template-columns: repeat(auto-fit, minmax(74px,1fr)); gap:10px; margin-bottom: 22px; }
+  .stats { display:grid; grid-template-columns: repeat(auto-fit, minmax(74px,1fr)); gap:10px; margin-bottom: 14px; }
   .stat { background: var(--glass); border:1px solid var(--hair); border-radius:16px; padding:14px; text-align:center; }
   .stat .k { font-size:10px; letter-spacing:2px; text-transform:uppercase; color:rgba(234,252,255,.45); }
   .stat .v { font-size:24px; font-weight:800; margin-top:4px; }
   .stat .u { font-size:13px; font-weight:600; color:rgba(234,252,255,.55); }
+  .stat .face { margin-top:6px; min-height:24px; display:flex; align-items:center; justify-content:center; }
+  .stat .face svg { display:block; }
   .arrow { display:inline-block; transition: transform .4s; color: var(--teal); }
+
+  /* live/updating/offline status line */
+  .status { display:flex; align-items:center; gap:8px; font-size:12px; color:rgba(234,252,255,.62); margin: 2px 2px 22px; }
+  .status .dot { width:9px; height:9px; border-radius:50%; flex:0 0 auto; background: var(--teal); color: var(--teal); box-shadow: 0 0 7px currentColor; }
+  .dot.live    { background: var(--live);  color: var(--live); }
+  .dot.stale   { background: var(--stale); color: var(--stale); }
+  .dot.updating{ background: var(--warn);  color: var(--warn); animation: dotpulse 1.1s ease-in-out infinite; }
+  @keyframes dotpulse { 0%,100% { opacity:1; } 50% { opacity:.2; } }
+  @media (prefers-reduced-motion: reduce) { .dot.updating { animation: none; } }
 
   h2 { font-size:13px; letter-spacing:3px; text-transform:uppercase; color:rgba(234,252,255,.45); margin: 0 0 12px; }
 
@@ -96,20 +121,9 @@
   .day .temp span { color:rgba(234,252,255,.45); font-weight:600; }
   .day .dayicon { display:inline-block; vertical-align:middle; margin-left:3px; }
 
-  /* weather conditions card */
-  .wx { display:flex; align-items:center; gap:14px; background:var(--glass); border:1px solid var(--hair);
-        border-radius:18px; padding:14px 16px; margin-bottom:22px; }
-  .wx .ico { flex:0 0 auto; }
-  .wx .cond { flex:1 1 auto; }
-  .wx .cond .lbl { font-size:16px; font-weight:700; }
-  .wx .cond .sub { font-size:12px; color:rgba(234,252,255,.55); margin-top:3px; }
-  .wx .cond .sub .arrow { color:var(--teal); }
-  .wx .temp { flex:0 0 auto; text-align:right; }
-  .wx .temp .now { font-size:34px; font-weight:800; letter-spacing:-1px; }
-  .wx .temp .mm { font-size:12px; color:rgba(234,252,255,.55); }
-
   footer { margin-top: 26px; font-size: 11px; color: rgba(234,252,255,.35); text-align:center; line-height:1.6; }
   footer a { color: rgba(234,252,255,.5); }
+  footer .ver { margin-bottom: 8px; letter-spacing: .3px; color: rgba(234,252,255,.45); font-variant-numeric: tabular-nums; }
 
 </style>
 </head>
@@ -117,7 +131,7 @@
 <div class="wrap">
   <header>
     <div class="brand">Swell<b>.</b></div>
-    <div class="tag">UK surf forecast</div>
+    <div class="tag">surf forecast</div>
   </header>
 
   <div class="regions" id="regions"></div>
@@ -130,33 +144,34 @@
       <div class="big" id="heroH">–<span> m</span></div>
       <div class="word" id="heroWord"></div>
     </div>
-    <div class="hero-place" id="heroPlace"></div>
+    <div class="hero-tr">
+      <div class="wxBadge" id="wxBadge" hidden>
+        <div class="wxTop"><span class="wxIco" id="wxIco"></span><span class="wxNow" id="wxNow">–°</span></div>
+        <div class="wxLbl" id="wxLbl"></div>
+        <div class="wxSub" id="wxSub"></div>
+      </div>
+      <div class="hero-place" id="heroPlace"></div>
+    </div>
     <div class="hero-state" id="heroState">Pick a beach to load the surf</div>
   </div>
 
   <div class="stats">
     <div class="stat"><div class="k">Swell</div><div class="v" id="sSwell">–<span class="u">m</span></div></div>
-    <div class="stat"><div class="k">Period</div><div class="v" id="sPeriod">–<span class="u">s</span></div></div>
+    <div class="stat"><div class="k">Period</div><div class="v" id="sPeriod">–<span class="u">s</span></div><div class="face" id="sFace"></div></div>
     <div class="stat"><div class="k">Direction</div><div class="v"><span class="arrow" id="sArrowG">↑</span> <span id="sDir">–</span></div></div>
     <div class="stat"><div class="k">Water</div><div class="v" id="sWater">–<span class="u">°C</span></div></div>
   </div>
 
-  <div class="wx" id="wx" hidden>
-    <div class="ico" id="wxIco"></div>
-    <div class="cond">
-      <div class="lbl" id="wxLbl">–</div>
-      <div class="sub" id="wxSub"></div>
-    </div>
-    <div class="temp">
-      <div class="now" id="wxNow">–°</div>
-      <div class="mm" id="wxMM"></div>
-    </div>
+  <div class="status" id="status" hidden>
+    <span class="dot" id="statusDot"></span>
+    <span id="statusText"></span>
   </div>
 
   <h2>5-day outlook</h2>
   <div class="forecast" id="forecast"></div>
 
   <footer>
+    <div class="ver" id="ver"></div>
     Wave and weather data from the <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> Marine &amp; Forecast APIs (CC BY 4.0).
     A forecast guide only — not for navigation or safety decisions.
   </footer>
@@ -166,24 +181,60 @@
 (() => {
   "use strict";
 
-  // --- Curated UK surf beaches (approximate coordinates; API snaps to nearest marine cell) ---
+  // ===========================================================================
+  // BUILD — bump on EVERY push to main. This is what the footer shows.
+  //   APP_VERSION: vX.Y.Z  (patch = fix/tweak, minor = feature). Never reuse one.
+  //   DEPLOYED:    date of this push, YYYY-MM-DD.
+  // No build step / no package.json — the version is simply baked into this file.
+  // ===========================================================================
+  const APP_VERSION = "1.1.0";
+  const DEPLOYED    = "2026-07-04";
+
+  // --- Curated surf beaches (approximate coordinates; API snaps to nearest marine cell) ---
   const BEACHES = [
-    { name:"Fistral Beach, Newquay",        region:"SW England", lat:50.416, lon:-5.101 },
-    { name:"Watergate Bay, Cornwall",       region:"SW England", lat:50.443, lon:-5.044 },
-    { name:"Porthmeor, St Ives",            region:"SW England", lat:50.215, lon:-5.486 },
-    { name:"Croyde Bay, Devon",             region:"SW England", lat:51.130, lon:-4.240 },
-    { name:"Bantham, Devon",                region:"SW England", lat:50.282, lon:-3.880 },
-    { name:"Llangennith, Gower",            region:"Wales",      lat:51.597, lon:-4.290 },
-    { name:"Freshwater West, Pembrokeshire",region:"Wales",      lat:51.666, lon:-5.068 },
-    { name:"Rest Bay, Porthcawl",           region:"Wales",      lat:51.488, lon:-3.717 },
-    { name:"Saltburn, North Yorkshire",     region:"NE England", lat:54.584, lon:-0.974 },
-    { name:"Tynemouth Longsands",           region:"NE England", lat:55.018, lon:-1.422 },
-    { name:"Cayton Bay, Scarborough",       region:"NE England", lat:54.235, lon:-0.347 },
-    { name:"Thurso East, Caithness",        region:"Scotland",   lat:58.597, lon:-3.518 },
-    { name:"Pease Bay, Berwickshire",       region:"Scotland",   lat:55.929, lon:-2.343 },
-    { name:"Machrihanish, Kintyre",         region:"Scotland",   lat:55.425, lon:-5.732 }
+    // UK — South West only
+    { name:"Fistral Beach, Newquay",         region:"SW England", lat:50.416, lon:-5.101 },
+    { name:"Watergate Bay, Cornwall",        region:"SW England", lat:50.443, lon:-5.044 },
+    { name:"Porthmeor, St Ives",             region:"SW England", lat:50.215, lon:-5.486 },
+    { name:"Croyde Bay, Devon",              region:"SW England", lat:51.130, lon:-4.240 },
+    { name:"Bantham, Devon",                 region:"SW England", lat:50.282, lon:-3.880 },
+    // Portugal
+    { name:"Praia do Norte, Nazaré",         region:"Portugal",   lat:39.605, lon:-9.083 },
+    { name:"Supertubos, Peniche",            region:"Portugal",   lat:39.343, lon:-9.366 },
+    { name:"Ribeira d'Ilhas, Ericeira",      region:"Portugal",   lat:38.996, lon:-9.418 },
+    { name:"Carcavelos, Lisbon",             region:"Portugal",   lat:38.679, lon:-9.337 },
+    // Spain
+    { name:"Mundaka, Basque Country",        region:"Spain",      lat:43.407, lon:-2.699 },
+    { name:"Zarautz, Basque Country",        region:"Spain",      lat:43.284, lon:-2.170 },
+    { name:"Somo, Cantabria",                region:"Spain",      lat:43.470, lon:-3.755 },
+    { name:"Rodiles, Asturias",              region:"Spain",      lat:43.525, lon:-5.383 },
+    // France
+    { name:"La Gravière, Hossegor",          region:"France",     lat:43.664, lon:-1.443 },
+    { name:"Lacanau Océan",                  region:"France",     lat:45.002, lon:-1.202 },
+    { name:"Grande Plage, Biarritz",         region:"France",     lat:43.485, lon:-1.559 },
+    { name:"La Torche, Brittany",            region:"France",     lat:47.837, lon:-4.349 },
+    // Sri Lanka
+    { name:"Arugam Bay",                     region:"Sri Lanka",  lat:6.840,  lon:81.836 },
+    { name:"Weligama Bay",                   region:"Sri Lanka",  lat:5.972,  lon:80.429 },
+    { name:"Midigama",                       region:"Sri Lanka",  lat:5.966,  lon:80.389 },
+    { name:"Hikkaduwa",                      region:"Sri Lanka",  lat:6.137,  lon:80.100 },
+    // Hawaii
+    { name:"Pipeline, Oʻahu",                region:"Hawaii",     lat:21.665, lon:-158.053 },
+    { name:"Waikiki, Oʻahu",                 region:"Hawaii",     lat:21.276, lon:-157.827 },
+    { name:"Honolua Bay, Maui",              region:"Hawaii",     lat:21.015, lon:-156.638 },
+    { name:"Hanalei Bay, Kauaʻi",            region:"Hawaii",     lat:22.205, lon:-159.503 }
   ];
   const REGIONS = ["All", ...Array.from(new Set(BEACHES.map(b => b.region)))];
+
+  // --- Tuneables (safe to change + redeploy) ---------------------------------
+  // MAX_WAVE_M: hero animation top-out. A wave of this height fills the window;
+  //   anything taller looks the same (no point scaling Nazaré's 30 m). Change,
+  //   commit, push — no other edits needed.
+  // BIG_SURF_M: at/above this the waves shift to a deeper "proper surf" colour
+  //   (hero front wave + forecast day glyphs). Purely cosmetic.
+  const MAX_WAVE_M = 3;
+  const BIG_SURF_M = 2;
+  // ---------------------------------------------------------------------------
 
   const $ = id => document.getElementById(id);
   let activeRegion = "All";
@@ -204,6 +255,58 @@
     if (deg == null) return "–";
     const dirs = ["N","NE","E","SE","S","SW","W","NW"];
     return dirs[Math.round(deg/45) % 8];
+  }
+
+  // Great-circle distance (km) — used to pick the beach nearest the user.
+  function distanceKm(la1, lo1, la2, lo2){
+    const R = 6371, rad = Math.PI/180;
+    const dLa = (la2-la1)*rad, dLo = (lo2-lo1)*rad;
+    const a = Math.sin(dLa/2)**2 + Math.cos(la1*rad)*Math.cos(la2*rad)*Math.sin(dLo/2)**2;
+    return 2 * R * Math.asin(Math.sqrt(a));
+  }
+
+  // --- Wave period -> surf-quality hint (long-period groundswell surfs cleaner than short windswell) ---
+  const PERIOD_LABEL = [
+    "Short-period windswell — likely choppy, weaker surf",
+    "Medium period — decent, workable surf",
+    "Long-period groundswell — clean, powerful surf"
+  ];
+  function periodLevel(p){
+    if (p == null || isNaN(p)) return -1;
+    if (p < 8)  return 0;   // windswell
+    if (p < 11) return 1;   // decent
+    return 2;               // clean groundswell
+  }
+  // Little hand-drawn surfer characters for each quality level. It's meant to be fun.
+  function surfFace(level){
+    const skin = "#e8b06a", ink = "#231407";
+    const o = '<svg width="24" height="24" viewBox="0 0 30 30" fill="none">';
+    if (level === 0)  // bummed long-haired dude
+      return o +
+        '<path d="M6 26 Q5 16 5 13 Q5 4 15 4 Q25 4 25 13 Q25 16 24 26 L21 26 Q22 18 22 14 Q22 9 15 9 Q8 9 8 14 Q8 18 9 26 Z" fill="#5b3b20"/>' +
+        '<circle cx="15" cy="14" r="7.5" fill="'+skin+'"/>' +
+        '<path d="M10 12.4 L13 13.6" stroke="'+ink+'" stroke-width="1.2" stroke-linecap="round"/>' +
+        '<path d="M20 12.4 L17 13.6" stroke="'+ink+'" stroke-width="1.2" stroke-linecap="round"/>' +
+        '<circle cx="12" cy="15" r="0.9" fill="'+ink+'"/><circle cx="18" cy="15" r="0.9" fill="'+ink+'"/>' +
+        '<path d="M11 20.5 Q15 17.5 19 20.5" stroke="'+ink+'" stroke-width="1.4" stroke-linecap="round" fill="none"/></svg>';
+    if (level === 1)  // stoked surfer girl with a hibiscus
+      return o +
+        '<path d="M6 22 Q5 15 5 13 Q5 4 15 4 Q25 4 25 13 Q25 15 24 22 Q23 16 22 14 Q22 9 15 9 Q8 9 8 14 Q7 16 6 22 Z" fill="#7a4a22"/>' +
+        '<circle cx="15" cy="15" r="7.5" fill="'+skin+'"/>' +
+        '<circle cx="12" cy="14.5" r="1" fill="'+ink+'"/><circle cx="18" cy="14.5" r="1" fill="'+ink+'"/>' +
+        '<path d="M11.5 18 Q15 21.5 18.5 18" stroke="'+ink+'" stroke-width="1.4" stroke-linecap="round" fill="none"/>' +
+        '<g transform="translate(23.5,9)">' +
+          '<circle cx="0" cy="-2.6" r="1.7" fill="#ff7a59"/><circle cx="2.5" cy="-0.8" r="1.7" fill="#ff7a59"/>' +
+          '<circle cx="1.5" cy="2.1" r="1.7" fill="#ff7a59"/><circle cx="-1.5" cy="2.1" r="1.7" fill="#ff7a59"/>' +
+          '<circle cx="-2.5" cy="-0.8" r="1.7" fill="#ff7a59"/><circle cx="0" cy="0" r="1.3" fill="'+skin+'"/></g></svg>';
+    // level 2 — clean shades dude, big grin
+    return o +
+      '<path d="M7 12 Q6 4 15 4 Q24 4 23 12 Q20 8.5 15 8.5 Q10 8.5 7 12 Z" fill="#3a2714"/>' +
+      '<circle cx="15" cy="15" r="7.5" fill="'+skin+'"/>' +
+      '<rect x="8.5" y="12.5" width="5.5" height="4" rx="1.3" fill="#04111f"/>' +
+      '<rect x="16" y="12.5" width="5.5" height="4" rx="1.3" fill="#04111f"/>' +
+      '<path d="M14 13.6 L16 13.6" stroke="#04111f" stroke-width="1.2" stroke-linecap="round"/>' +
+      '<path d="M11 19 Q15 23 19 19" stroke="'+ink+'" stroke-width="1.6" stroke-linecap="round" fill="none"/></svg>';
   }
 
   // --- WMO weather code -> category / label / icon ---
@@ -285,14 +388,56 @@
   }
   $("beach").addEventListener("change", e => { if (e.target.value !== "") loadBeach(BEACHES[+e.target.value]); });
 
-  // --- Fetch + render ---
+  // --- Freshness / persistence ---
   let lastMarine = null, lastWx = null;
+  let loadSeq = 0;
 
+  const cacheKey = b => "swell:v1:" + b.lat + "," + b.lon;
+  function readCache(b){
+    try { const s = localStorage.getItem(cacheKey(b)); return s ? JSON.parse(s) : null; }
+    catch (_) { return null; }
+  }
+  function writeCache(b, marine, wx){
+    try { localStorage.setItem(cacheKey(b), JSON.stringify({ marine, wx, ts: Date.now() })); }
+    catch (_) { /* private mode / quota — non-fatal */ }
+  }
+
+  function fmtTime(ts){
+    return ts ? new Date(ts).toLocaleTimeString([], { hour:"2-digit", minute:"2-digit" }) : "";
+  }
+  // state: "updating" (orange, pulsing) | "live" (green) | "stale" (red)
+  function setStatus(state, ts){
+    $("status").hidden = false;
+    $("statusDot").className = "dot " + state;
+    let txt;
+    if (state === "updating")   txt = "Updating… · Open-Meteo";
+    else if (state === "live")  txt = "Live · Open-Meteo" + (ts ? " · as of " + fmtTime(ts) : "");
+    else                        txt = ts ? "Offline — saved forecast · from " + fmtTime(ts)
+                                         : "Offline · no saved forecast";
+    $("statusText").textContent = txt;
+  }
+  function setStatusSlow(){
+    if ($("statusDot").classList.contains("updating"))
+      $("statusText").textContent = "Slow connection… · Open-Meteo";
+  }
+
+  // --- Fetch + render (persistence: paint saved readings first, then refresh) ---
   async function loadBeach(b){
-    setState("Loading surf at " + b.name + "…");
-    $("heroPlace").textContent = b.name;
-    lastMarine = null; lastWx = null;
-    $("wx").hidden = true;
+    const seq = ++loadSeq;
+    $("heroPlace").innerHTML = b.name + '<span class="place-region">' + b.region + '</span>';
+
+    const cached = readCache(b);
+    if (cached && cached.marine){
+      renderSurf(cached.marine);
+      if (cached.wx) renderWeather(cached.wx);
+      setState("");
+      setStatus("updating", cached.ts);      // show saved data while we refresh
+    } else {
+      lastMarine = null; lastWx = null;
+      $("wxBadge").hidden = true;
+      setState("Loading surf at " + b.name + "…");
+      setStatus("updating", null);
+    }
 
     const marineU = "https://marine-api.open-meteo.com/v1/marine?latitude=" + b.lat + "&longitude=" + b.lon +
       "&current=wave_height,wave_period,wave_direction,swell_wave_height,sea_surface_temperature" +
@@ -303,13 +448,36 @@
       "&daily=weather_code,temperature_2m_max,temperature_2m_min" +
       "&timezone=auto&forecast_days=5";
 
+    const ctrl = new AbortController();
+    const slowT = setTimeout(setStatusSlow, 4000);          // nudge the user if it's dragging
+    const killT = setTimeout(() => ctrl.abort(), 9000);     // give up rather than hang forever
+
     try {
-      const [mRes, wRes] = await Promise.all([fetch(marineU), fetch(wxU)]);
+      const [mRes, wRes] = await Promise.all([
+        fetch(marineU, { signal: ctrl.signal }),
+        fetch(wxU,     { signal: ctrl.signal })
+      ]);
+      clearTimeout(slowT); clearTimeout(killT);
+      if (seq !== loadSeq) return;                          // a newer selection superseded this one
       if (!mRes.ok) throw new Error("marine HTTP " + mRes.status);
-      renderSurf(await mRes.json());
-      if (wRes.ok) renderWeather(await wRes.json());  // weather is best-effort; surf is primary
+
+      const marine = await mRes.json();
+      renderSurf(marine);
+      let wx = null;
+      if (wRes.ok){ wx = await wRes.json(); renderWeather(wx); }  // weather is best-effort; surf is primary
+      writeCache(b, marine, wx);
+      setState("");
+      setStatus("live", Date.now());
     } catch (err) {
-      setState("Couldn't load the forecast — check your connection and try again.");
+      clearTimeout(slowT); clearTimeout(killT);
+      if (seq !== loadSeq) return;
+      if (cached && cached.marine){
+        setState("");
+        setStatus("stale", cached.ts);                      // keep the saved readings on screen
+      } else {
+        setState("Couldn't load the forecast — check your connection and try again.");
+        setStatus("stale", null);
+      }
       console.error(err);
     }
   }
@@ -320,12 +488,16 @@
     const h = c.wave_height;
     targetWave = (typeof h === "number") ? h : 0;   // drive the animation
     $("heroRead").hidden = false;
-    setState("");
     $("heroH").innerHTML = (h?.toFixed(1) ?? "–") + "<span> m</span>";
     $("heroWord").textContent = scaleWord(h);
 
     $("sSwell").innerHTML  = (c.swell_wave_height?.toFixed(1) ?? "–") + '<span class="u">m</span>';
     $("sPeriod").innerHTML = (Math.round(c.wave_period) || "–") + '<span class="u">s</span>';
+    const lvl = periodLevel(c.wave_period);
+    const face = $("sFace");
+    if (lvl >= 0){ face.innerHTML = surfFace(lvl); face.title = PERIOD_LABEL[lvl]; }
+    else { face.innerHTML = ""; face.removeAttribute("title"); }
+
     $("sDir").textContent  = cardinal(c.wave_direction);
     if (typeof c.wave_direction === "number")
       $("sArrowG").style.transform = "rotate(" + (c.wave_direction + 180) + "deg)";
@@ -338,8 +510,8 @@
     lastWx = d;
     const c = d.current || {};
     const cat = wxCat(c.weather_code), night = c.is_day === 0;
-    $("wx").hidden = false;
-    $("wxIco").innerHTML = svgWx(cat, 52, night);
+    $("wxBadge").hidden = false;
+    $("wxIco").innerHTML = svgWx(cat, 30, night);
     $("wxLbl").textContent = wxLabel(c.weather_code);
     $("wxNow").textContent = (c.temperature_2m != null ? Math.round(c.temperature_2m) : "–") + "°";
 
@@ -349,7 +521,7 @@
     if (wind != null){
       sub = '<span class="arrow" style="display:inline-block;transform:rotate(' +
         ((c.wind_direction_10m ?? 0) + 180) + 'deg)">↑</span> ' +
-        wind + " km/h from " + cardinal(c.wind_direction_10m);
+        wind + " km/h " + cardinal(c.wind_direction_10m);
       if (gust != null) sub += " · gusts " + gust;
     }
     $("wxSub").innerHTML = sub;
@@ -388,7 +560,7 @@
   function dayGlyph(m, dir){
     const W = 46, H = 34, base = H - 4;
     const amp = Math.max(3, Math.min(base - 3, (m || 0) / 4 * (base - 3))); // 4 m ~ full height
-    const big = (m || 0) >= 2;
+    const big = (m || 0) >= BIG_SURF_M;
     const col = big ? "#ff7a59" : "#18c4b4";
     const y = base - amp;
     const d = "M0," + base +
@@ -408,12 +580,11 @@
     s.textContent = msg; s.style.display = msg ? "flex" : "none";
   }
 
-  // --- Animated hero sea; front-wave amplitude tracks live wave height vs a surfer for scale ---
+  // --- Animated hero sea; front-wave amplitude tracks live wave height, topping out at MAX_WAVE_M ---
   const cv = $("seaCanvas"), ctx = cv.getContext("2d");
   let DPR = 1, CW = 0, CH = 0;
   let targetWave = 0, shownWave = 0;
-  const SURFER_PX = 46;            // rider height in px (no longer a scale ruler)
-  const PXPM = 32;                 // wave height metres -> crest px
+  const SURFER_PX = 46;            // rider height in px (MAX_WAVE_M / BIG_SURF_M live in Tuneables up top)
   let surferX = -30;               // rides left -> right, then wraps
   let lastT = 0;
 
@@ -455,8 +626,10 @@
     ctx.clearRect(0,0,CW,CH);
 
     const baseY = CH * 0.78;                          // still-water line
-    let crest = shownWave * PXPM;                     // metres -> px
-    crest = Math.min(crest, CH * 0.52);               // clamp for display
+    // Map wave height -> crest px, clamped so MAX_WAVE_M reaches the top with headroom for the surfer.
+    const wm = Math.min(shownWave, MAX_WAVE_M);
+    const maxCrest = Math.max(10, baseY - (SURFER_PX + 14));
+    const crest = (wm / MAX_WAVE_M) * maxCrest;
 
     // back glow / sky
     const sky = ctx.createLinearGradient(0,0,0,baseY);
@@ -467,7 +640,7 @@
     const layers = [
       { amp: crest*0.45 + 4, k: 0.012, sp: 0.7, col:"rgba(10,58,92,.9)",  off: baseY+14 },
       { amp: crest*0.72 + 5, k: 0.016, sp: 1.1, col:"rgba(14,120,140,.92)", off: baseY+6 },
-      { amp: crest + 6,      k: 0.020, sp: 1.6, col: shownWave>=2 ? "#13708a" : "#0f9aa0", off: baseY }
+      { amp: crest + 6,      k: 0.020, sp: 1.6, col: shownWave>=BIG_SURF_M ? "#13708a" : "#0f9aa0", off: baseY }
     ];
     layers.forEach((L, idx) => {
       ctx.beginPath();
@@ -501,10 +674,41 @@
     requestAnimationFrame(frame);
   }
 
+  // --- Geolocation: default to the beach nearest the user (client-side only; never transmitted) ---
+  function geolocate(){
+    if (!("geolocation" in navigator)) return;               // no API -> leave blank
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        if (loadSeq > 0) return;                             // user already picked something
+        const { latitude: la, longitude: lo } = pos.coords;
+        let best = null, bd = Infinity;
+        BEACHES.forEach(b => {
+          const d = distanceKm(la, lo, b.lat, b.lon);
+          if (d < bd){ bd = d; best = b; }
+        });
+        if (!best) return;
+        activeRegion = best.region;
+        renderRegions(); renderBeachOptions();
+        $("beach").value = BEACHES.indexOf(best);            // programmatic set won't fire "change"
+        loadBeach(best);
+      },
+      () => { /* denied / unavailable / timeout -> leave the default blank */ },
+      { enableHighAccuracy: false, timeout: 8000, maximumAge: 600000 }
+    );
+  }
+
+  // Footer: baked-in version + deploy date, plus this load's local time.
+  function stampFooter(){
+    const refreshed = new Date().toLocaleTimeString([], { hour:"2-digit", minute:"2-digit", second:"2-digit", hour12:false });
+    $("ver").textContent = "v" + APP_VERSION + " · deployed " + DEPLOYED + " · refreshed " + refreshed;
+  }
+
   // --- init ---
   function init(){
+    stampFooter();
     renderRegions(); renderBeachOptions(); sizeCanvas();
     requestAnimationFrame(frame);
+    geolocate();
   }
   window.addEventListener("resize", sizeCanvas);
   init();
