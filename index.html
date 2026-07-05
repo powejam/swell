@@ -88,16 +88,20 @@
   .hero-place .place-region { display:block; font-size:11px; font-weight:600; color:rgba(234,252,255,.6); margin-top:1px; }
   .hero-state { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; z-index:3; font-size:14px; color:rgba(234,252,255,.7); padding:0 16px; text-align:center; }
 
-  /* current stats */
-  .stats { display:grid; grid-template-columns: repeat(auto-fit, minmax(74px,1fr)); gap:10px; margin-bottom: 14px; }
-  .stat { background: var(--glass); border:1px solid var(--hair); border-radius:16px; padding:14px; text-align:center; }
-  .stat .k { font-size:10px; letter-spacing:2px; text-transform:uppercase; color:rgba(234,252,255,.45); }
-  .stat .v { font-size:24px; font-weight:800; margin-top:4px; }
-  .stat .u { font-size:13px; font-weight:600; color:rgba(234,252,255,.55); }
-  .stat .face { margin-top:8px; min-height:38px; display:flex; align-items:center; justify-content:center; }
-  .stat .face svg { display:block; }
-  .stat .wind2 { font-size:11px; font-weight:700; color:rgba(234,252,255,.62); margin-top:4px; white-space:nowrap; }
-  .stat .wind2 .warrow { color: var(--sun); }
+  /* current conditions — one card, one line per condition, traffic-light rated */
+  .conds { background: var(--glass); border:1px solid var(--hair); border-radius:16px; padding: 4px 16px; margin-bottom: 14px; }
+  .cond { display:grid; grid-template-columns: 12px 96px 1fr; gap: 0 12px; align-items:center; padding: 13px 0; border-bottom:1px solid var(--hair); }
+  .cond:last-child { border-bottom:none; }
+  .cond .k { font-size:10px; letter-spacing:2px; text-transform:uppercase; color:rgba(234,252,255,.45); }
+  .cond .v { font-size:20px; font-weight:800; white-space:nowrap; }
+  .cond .u { font-size:12px; font-weight:600; color:rgba(234,252,255,.55); }
+  .cond .body { display:flex; align-items:baseline; justify-content:space-between; gap:10px; min-width:0; }
+  .cond .note { font-size:12px; font-weight:700; color:rgba(234,252,255,.62); text-align:right; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .cond .note .warrow { color: var(--sun); }
+  .tl { width:11px; height:11px; border-radius:50%; background:rgba(234,252,255,.18); }
+  .tl.g { background: var(--live);  box-shadow: 0 0 7px var(--live); }
+  .tl.o { background: var(--warn);  box-shadow: 0 0 7px var(--warn); }
+  .tl.r { background: var(--stale); box-shadow: 0 0 7px var(--stale); }
   .arrow { display:inline-block; transition: transform .4s; color: var(--teal); }
 
   /* live/updating/offline status line */
@@ -111,17 +115,17 @@
 
   h2 { font-size:13px; letter-spacing:3px; text-transform:uppercase; color:rgba(234,252,255,.45); margin: 0 0 12px; }
 
-  /* forecast row */
-  .forecast { display:grid; grid-template-columns: repeat(5,1fr); gap:10px; }
-  .day { background: var(--glass); border:1px solid var(--hair); border-radius:16px; padding:12px 6px; text-align:center; }
+  /* forecast — stacked day rows, day 1 on top; fixed columns keep rows aligned */
+  .forecast { display:flex; flex-direction:column; gap:10px; }
+  .day { background: var(--glass); border:1px solid var(--hair); border-radius:16px; padding:10px 16px;
+         display:grid; grid-template-columns: 40px 26px 46px 1fr auto; gap: 0 12px; align-items:center; }
   .day .dow { font-size:12px; font-weight:700; color:rgba(234,252,255,.7); }
-  .day svg { display:block; margin:8px auto 6px; }
-  .day .h { font-size:18px; font-weight:800; }
+  .day .ico svg, .day > svg { display:block; }
+  .day .h { font-size:18px; font-weight:800; white-space:nowrap; }
   .day .h span { font-size:11px; color:rgba(234,252,255,.5); }
-  .day .w { font-size:10px; color:var(--sun); margin-top:2px; min-height:13px; }
-  .day .temp { font-size:12px; font-weight:700; margin-top:6px; color:rgba(234,252,255,.85); }
+  .day .w { font-size:11px; font-weight:700; color:var(--sun); margin-top:2px; min-height:13px; }
+  .day .temp { font-size:13px; font-weight:700; color:rgba(234,252,255,.85); text-align:right; white-space:nowrap; }
   .day .temp span { color:rgba(234,252,255,.45); font-weight:600; }
-  .day .dayicon { display:inline-block; vertical-align:middle; margin-left:3px; }
 
   footer { margin-top: 26px; font-size: 11px; color: rgba(234,252,255,.35); text-align:center; line-height:1.6; }
   footer a { color: rgba(234,252,255,.5); }
@@ -157,11 +161,15 @@
     <div class="hero-state" id="heroState">Pick a beach to load the surf</div>
   </div>
 
-  <div class="stats">
-    <div class="stat"><div class="k">Swell</div><div class="v" id="sSwell">–<span class="u">m</span></div><div class="face" id="faceSwell"></div></div>
-    <div class="stat"><div class="k">Period</div><div class="v" id="sPeriod">–<span class="u">s</span></div><div class="face" id="facePeriod"></div></div>
-    <div class="stat"><div class="k">Direction</div><div class="v"><span class="arrow" id="sArrowG">↑</span> <span id="sDir">–</span></div><div class="wind2" id="sWind"></div><div class="face" id="faceDir"></div></div>
-    <div class="stat"><div class="k">Water</div><div class="v" id="sWater">–<span class="u">°C</span></div><div class="face" id="faceWater"></div></div>
+  <div class="conds">
+    <div class="cond"><span class="tl" id="tlSwell"></span><span class="k">Swell</span>
+      <span class="body"><span class="v" id="sSwell">–<span class="u">m</span></span><span class="note" id="nSwell"></span></span></div>
+    <div class="cond"><span class="tl" id="tlPeriod"></span><span class="k">Period</span>
+      <span class="body"><span class="v" id="sPeriod">–<span class="u">s</span></span><span class="note" id="nPeriod"></span></span></div>
+    <div class="cond"><span class="tl" id="tlDir"></span><span class="k">Direction</span>
+      <span class="body"><span class="v"><span class="arrow" id="sArrowG">↑</span> <span id="sDir">–</span></span><span class="note" id="nDir"></span></span></div>
+    <div class="cond"><span class="tl" id="tlWater"></span><span class="k">Water</span>
+      <span class="body"><span class="v" id="sWater">–<span class="u">°C</span></span><span class="note" id="nWater"></span></span></div>
   </div>
 
   <div class="status" id="status" hidden>
@@ -189,42 +197,45 @@
   //   DEPLOYED:    date of this push, YYYY-MM-DD.
   // No build step / no package.json — the version is simply baked into this file.
   // ===========================================================================
-  const APP_VERSION = "1.1.3";
-  const DEPLOYED    = "2026-07-04";
+  const APP_VERSION = "1.2.0";
+  const DEPLOYED    = "2026-07-05";
 
   // --- Curated surf beaches (approximate coordinates; API snaps to nearest marine cell) ---
+  // `facing` = compass bearing looking straight out to sea from the sand (degrees).
+  // Hand-estimated from the coastline (±20° is fine — wind scoring uses ~90° sectors).
+  // It's what lets us call a wind offshore (from ≈ facing+180) vs onshore (from ≈ facing).
   const BEACHES = [
     // UK — South West only
-    { name:"Fistral Beach, Newquay",         region:"SW England", lat:50.416, lon:-5.101 },
-    { name:"Watergate Bay, Cornwall",        region:"SW England", lat:50.443, lon:-5.044 },
-    { name:"Porthmeor, St Ives",             region:"SW England", lat:50.215, lon:-5.486 },
-    { name:"Croyde Bay, Devon",              region:"SW England", lat:51.130, lon:-4.240 },
-    { name:"Bantham, Devon",                 region:"SW England", lat:50.282, lon:-3.880 },
+    { name:"Fistral Beach, Newquay",         region:"SW England", lat:50.416, lon:-5.101,   facing:290 },
+    { name:"Watergate Bay, Cornwall",        region:"SW England", lat:50.443, lon:-5.044,   facing:285 },
+    { name:"Porthmeor, St Ives",             region:"SW England", lat:50.215, lon:-5.486,   facing:345 },
+    { name:"Croyde Bay, Devon",              region:"SW England", lat:51.130, lon:-4.240,   facing:275 },
+    { name:"Bantham, Devon",                 region:"SW England", lat:50.282, lon:-3.880,   facing:205 },
     // Portugal
-    { name:"Praia do Norte, Nazaré",         region:"Portugal",   lat:39.605, lon:-9.083 },
-    { name:"Supertubos, Peniche",            region:"Portugal",   lat:39.343, lon:-9.366 },
-    { name:"Ribeira d'Ilhas, Ericeira",      region:"Portugal",   lat:38.996, lon:-9.418 },
-    { name:"Carcavelos, Lisbon",             region:"Portugal",   lat:38.679, lon:-9.337 },
+    { name:"Praia do Norte, Nazaré",         region:"Portugal",   lat:39.605, lon:-9.083,   facing:290 },
+    { name:"Supertubos, Peniche",            region:"Portugal",   lat:39.343, lon:-9.366,   facing:210 },
+    { name:"Ribeira d'Ilhas, Ericeira",      region:"Portugal",   lat:38.996, lon:-9.418,   facing:280 },
+    { name:"Carcavelos, Lisbon",             region:"Portugal",   lat:38.679, lon:-9.337,   facing:200 },
     // Spain
-    { name:"Mundaka, Basque Country",        region:"Spain",      lat:43.407, lon:-2.699 },
-    { name:"Zarautz, Basque Country",        region:"Spain",      lat:43.284, lon:-2.170 },
-    { name:"Somo, Cantabria",                region:"Spain",      lat:43.470, lon:-3.755 },
-    { name:"Rodiles, Asturias",              region:"Spain",      lat:43.525, lon:-5.383 },
+    { name:"Mundaka, Basque Country",        region:"Spain",      lat:43.407, lon:-2.699,   facing:350 },
+    { name:"Zarautz, Basque Country",        region:"Spain",      lat:43.284, lon:-2.170,   facing:340 },
+    { name:"Somo, Cantabria",                region:"Spain",      lat:43.470, lon:-3.755,   facing:335 },
+    { name:"Rodiles, Asturias",              region:"Spain",      lat:43.525, lon:-5.383,   facing:20 },
     // France
-    { name:"La Gravière, Hossegor",          region:"France",     lat:43.664, lon:-1.443 },
-    { name:"Lacanau Océan",                  region:"France",     lat:45.002, lon:-1.202 },
-    { name:"Grande Plage, Biarritz",         region:"France",     lat:43.485, lon:-1.559 },
-    { name:"La Torche, Brittany",            region:"France",     lat:47.837, lon:-4.349 },
+    { name:"La Gravière, Hossegor",          region:"France",     lat:43.664, lon:-1.443,   facing:275 },
+    { name:"Lacanau Océan",                  region:"France",     lat:45.002, lon:-1.202,   facing:275 },
+    { name:"Grande Plage, Biarritz",         region:"France",     lat:43.485, lon:-1.559,   facing:325 },
+    { name:"La Torche, Brittany",            region:"France",     lat:47.837, lon:-4.349,   facing:250 },
     // Sri Lanka
-    { name:"Arugam Bay",                     region:"Sri Lanka",  lat:6.840,  lon:81.836 },
-    { name:"Weligama Bay",                   region:"Sri Lanka",  lat:5.972,  lon:80.429 },
-    { name:"Midigama",                       region:"Sri Lanka",  lat:5.966,  lon:80.389 },
-    { name:"Hikkaduwa",                      region:"Sri Lanka",  lat:6.137,  lon:80.100 },
+    { name:"Arugam Bay",                     region:"Sri Lanka",  lat:6.840,  lon:81.836,   facing:120 },
+    { name:"Weligama Bay",                   region:"Sri Lanka",  lat:5.972,  lon:80.429,   facing:175 },
+    { name:"Midigama",                       region:"Sri Lanka",  lat:5.966,  lon:80.389,   facing:190 },
+    { name:"Hikkaduwa",                      region:"Sri Lanka",  lat:6.137,  lon:80.100,   facing:235 },
     // Hawaii
-    { name:"Pipeline, Oʻahu",                region:"Hawaii",     lat:21.665, lon:-158.053 },
-    { name:"Waikiki, Oʻahu",                 region:"Hawaii",     lat:21.276, lon:-157.827 },
-    { name:"Honolua Bay, Maui",              region:"Hawaii",     lat:21.015, lon:-156.638 },
-    { name:"Hanalei Bay, Kauaʻi",            region:"Hawaii",     lat:22.205, lon:-159.503 }
+    { name:"Pipeline, Oʻahu",                region:"Hawaii",     lat:21.665, lon:-158.053, facing:325 },
+    { name:"Waikiki, Oʻahu",                 region:"Hawaii",     lat:21.276, lon:-157.827, facing:190 },
+    { name:"Honolua Bay, Maui",              region:"Hawaii",     lat:21.015, lon:-156.638, facing:340 },
+    { name:"Hanalei Bay, Kauaʻi",            region:"Hawaii",     lat:22.205, lon:-159.503, facing:5 }
   ];
   const REGIONS = ["All", ...Array.from(new Set(BEACHES.map(b => b.region)))];
 
@@ -267,68 +278,62 @@
     return 2 * R * Math.asin(Math.sqrt(a));
   }
 
-  // --- Per-metric quality (0 poor, 1 ok, 2 stoked) -> drives each surfer's expression ---
-  function qSwell(m){ if (m == null || isNaN(m)) return 1; if (m < 0.5) return 0; if (m < 1.5) return 1; return 2; }  // more swell = better
-  function qPeriod(p){ if (p == null || isNaN(p)) return 1; if (p < 8) return 0; if (p < 11) return 1; return 2; }    // long-period groundswell = cleaner
-  function qWater(t){ if (t == null || isNaN(t)) return 1; if (t < 14) return 0; if (t < 20) return 1; return 2; }    // warmer = comfier
-  function qWind(s){ if (s == null || isNaN(s)) return 1; if (s > 30) return 0; if (s > 18) return 1; return 2; }     // light wind = clean conditions
+  // --- Per-metric quality (0 poor, 1 ok, 2 good; null = no data) -> traffic light ---
+  function qSwell(m){ if (m == null || isNaN(m)) return null; if (m < 0.5) return 0; if (m < 1.5) return 1; return 2; }  // more swell = better
+  function qPeriod(p){ if (p == null || isNaN(p)) return null; if (p < 8) return 0; if (p < 11) return 1; return 2; }    // long-period groundswell = cleaner
+  function qWater(t){ if (t == null || isNaN(t)) return null; if (t < 14) return 0; if (t < 20) return 1; return 2; }    // warmer = comfier
 
-  const FACE_TITLE = [
-    ["Small swell — not much to work with", "Rideable swell", "Solid swell running"],
-    ["Short-period windswell — choppy, weak", "Medium period — workable", "Long-period groundswell — clean & powerful"],
-    ["Windy — likely blown out", "Some wind about", "Light wind — clean conditions"],
-    ["Cold — bring a good wetsuit", "Cool water", "Warm water — boardies weather"]
-  ];
-
-  // Four hand-drawn surfer characters (one per stat box); each one's expression tracks its metric.
-  function surfChar(id, mood){
-    const skin = "#e8b06a", ink = "#231407";
-    const o = '<svg width="34" height="34" viewBox="0 0 30 30" fill="none">';
-    const head = '<circle cx="15" cy="15" r="7.5" fill="'+skin+'"/>';
-    const eyes = '<circle cx="12" cy="14.5" r="1" fill="'+ink+'"/><circle cx="18" cy="14.5" r="1" fill="'+ink+'"/>';
-    const mouth = mood >= 2
-      ? '<path d="M11 18.5 Q15 22 19 18.5" stroke="'+ink+'" stroke-width="1.6" stroke-linecap="round" fill="none"/>'    // grin
-      : mood === 1
-      ? '<path d="M11.5 19.6 L18.5 19.6" stroke="'+ink+'" stroke-width="1.6" stroke-linecap="round"/>'                 // meh
-      : '<path d="M11 20.6 Q15 17.2 19 20.6" stroke="'+ink+'" stroke-width="1.6" stroke-linecap="round" fill="none"/>';// frown
-    if (id === 0)  // Swell — dude in shades
-      return o +
-        '<path d="M7 12 Q6 4 15 4 Q24 4 23 12 Q20 8.5 15 8.5 Q10 8.5 7 12 Z" fill="#3a2714"/>' + head +
-        '<rect x="8" y="12" width="6" height="4" rx="1.3" fill="#04111f"/>' +
-        '<rect x="16" y="12" width="6" height="4" rx="1.3" fill="#04111f"/>' +
-        '<path d="M14 13.7 L16 13.7" stroke="#04111f" stroke-width="1.2" stroke-linecap="round"/>' + mouth + '</svg>';
-    if (id === 1)  // Period — surfer girl with a hibiscus
-      return o +
-        '<path d="M6 22 Q5 15 5 13 Q5 4 15 4 Q25 4 25 13 Q25 15 24 22 Q23 16 22 14 Q22 9 15 9 Q8 9 8 14 Q7 16 6 22 Z" fill="#7a4a22"/>' +
-        head + eyes + mouth +
-        '<g transform="translate(23.5,9)">' +
-          '<circle cx="0" cy="-2.6" r="1.7" fill="#ff7a59"/><circle cx="2.5" cy="-0.8" r="1.7" fill="#ff7a59"/>' +
-          '<circle cx="1.5" cy="2.1" r="1.7" fill="#ff7a59"/><circle cx="-1.5" cy="2.1" r="1.7" fill="#ff7a59"/>' +
-          '<circle cx="-2.5" cy="-0.8" r="1.7" fill="#ff7a59"/><circle cx="0" cy="0" r="1.3" fill="#ffd089"/></g></svg>';
-    if (id === 2)  // Direction — long-haired dude with a headband
-      return o +
-        '<path d="M6 26 Q5 16 5 13 Q5 4 15 4 Q25 4 25 13 Q25 16 24 26 L21 26 Q22 18 22 14 Q22 9 15 9 Q8 9 8 14 Q8 18 9 26 Z" fill="#8a5a2c"/>' +
-        head +
-        '<rect x="7" y="9.8" width="16" height="2.6" rx="1.3" fill="#18c4b4"/>' +
-        eyes + mouth + '</svg>';
-    // id 3 — Water — beanie grommet (cold-water ready)
-    return o +
-      '<circle cx="15" cy="4.4" r="1.6" fill="#ffd089"/>' +
-      '<path d="M6.5 12.5 Q6.5 4.5 15 4.5 Q23.5 4.5 23.5 12.5 Z" fill="#ff7a59"/>' +
-      head +
-      '<rect x="6" y="10.5" width="18" height="3" rx="1.5" fill="#e0512f"/>' +
-      eyes + mouth + '</svg>';
+  // Wind is judged against the beach's aspect, not speed alone: offshore wind
+  // (blowing land->sea) grooms the wave face, onshore wind crumbles it, and under
+  // ~8 km/h it's glassy whatever the direction. `from` is where the wind blows FROM
+  // (meteorological convention), so from ≈ facing = onshore, from ≈ facing±180 = offshore.
+  function qWindShore(speed, from, facing){
+    if (speed == null || isNaN(speed)) return { q: null, word: "" };
+    if (speed < 8) return { q: 2, word: "Glassy" };
+    if (from == null || facing == null)                        // no aspect — speed-only fallback
+      return { q: speed > 30 ? 0 : speed > 18 ? 1 : 2, word: "" };
+    const off = Math.abs(((from - facing + 540) % 360) - 180); // 180 = dead offshore, 0 = dead onshore
+    if (off >= 135) return speed > 40 ? { q: 1, word: "Strong offshore" } : { q: 2, word: "Offshore" };
+    if (off <= 45)  return speed > 15 ? { q: 0, word: "Onshore" } : { q: 1, word: "Light onshore" };
+    return speed > 25 ? { q: 0, word: "Cross-shore" } : { q: 1, word: "Cross-shore" };
   }
 
-  // Paint all four box characters from the latest data (neutral before data arrives).
-  function updateFaces(){
+  // Short note shown on each line + fuller tooltip, both indexed by quality 0/1/2.
+  const TL_NOTE = {
+    swell:  ["Small", "Rideable", "Solid"],
+    period: ["Choppy windswell", "Workable", "Clean groundswell"],
+    water:  ["Thick wetsuit", "Wetsuit weather", "Boardies"]
+  };
+  const TL_TITLE = {
+    swell:  ["Small swell — not much to work with", "Rideable swell", "Solid swell running"],
+    period: ["Short-period windswell — choppy, weak", "Medium period — workable", "Long-period groundswell — clean & powerful"],
+    dir:    ["Wind working against the surf", "Mixed wind — surfable", "Wind grooming the surf"],
+    water:  ["Cold — bring a good wetsuit", "Cool water", "Warm water — boardies weather"]
+  };
+
+  // Paint the four traffic lights + notes from the latest data (grey until data lands).
+  function updateLights(){
     const c = (lastMarine && lastMarine.current) || {};
     const w = (lastWx && lastWx.current) || {};
-    const set = (elId, id, mood) => { const el = $(elId); if (!el) return; el.innerHTML = surfChar(id, mood); el.title = FACE_TITLE[id][mood]; };
-    set("faceSwell",  0, qSwell(c.swell_wave_height != null ? c.swell_wave_height : c.wave_height));
-    set("facePeriod", 1, qPeriod(c.wave_period));
-    set("faceDir",    2, qWind(w.wind_speed_10m));
-    set("faceWater",  3, qWater(c.sea_surface_temperature));
+    const set = (row, q, note, title) => {
+      $("tl" + row).className = "tl" + (q === 2 ? " g" : q === 1 ? " o" : q === 0 ? " r" : "");
+      $("n" + row).innerHTML = note;
+      $("tl" + row).parentElement.title = title;
+    };
+    const qs = qSwell(c.swell_wave_height != null ? c.swell_wave_height : c.wave_height);
+    const qp = qPeriod(c.wave_period);
+    const qt = qWater(c.sea_surface_temperature);
+    set("Swell",  qs, qs == null ? "" : TL_NOTE.swell[qs],  qs == null ? "" : TL_TITLE.swell[qs]);
+    set("Period", qp, qp == null ? "" : TL_NOTE.period[qp], qp == null ? "" : TL_TITLE.period[qp]);
+    set("Water",  qt, qt == null ? "" : TL_NOTE.water[qt],  qt == null ? "" : TL_TITLE.water[qt]);
+
+    const wind = qWindShore(w.wind_speed_10m, w.wind_direction_10m, currentBeach && currentBeach.facing);
+    let note = "";
+    if (w.wind_speed_10m != null){
+      note = '<span class="warrow arrow" style="transform:rotate(' + ((w.wind_direction_10m ?? 0) + 180) + 'deg)">↑</span> ' +
+             Math.round(w.wind_speed_10m) + ' km/h' + (wind.word ? " · " + wind.word : "");
+    }
+    set("Dir", wind.q, note, wind.q == null ? "" : TL_TITLE.dir[wind.q]);
   }
 
   // --- WMO weather code -> category / label / icon ---
@@ -412,6 +417,7 @@
 
   // --- Freshness / persistence ---
   let lastMarine = null, lastWx = null;
+  let currentBeach = null;    // selected beach — updateLights needs its `facing`
   let loadSeq = 0;
 
   const cacheKey = b => "swell:v1:" + b.lat + "," + b.lon;
@@ -446,6 +452,7 @@
   // --- Fetch + render (persistence: paint saved readings first, then refresh) ---
   async function loadBeach(b){
     const seq = ++loadSeq;
+    currentBeach = b;
     $("heroPlace").innerHTML = b.name + '<span class="place-region">' + b.region + '</span>';
 
     const cached = readCache(b);
@@ -457,7 +464,7 @@
     } else {
       lastMarine = null; lastWx = null;
       $("wxBadge").hidden = true;
-      $("sWind").textContent = "";
+      updateLights();                        // grey the dots + clear notes until data lands
       setState("Loading surf at " + b.name + "…");
       setStatus("updating", null);
     }
@@ -478,7 +485,7 @@
     try {
       const [mRes, wRes] = await Promise.all([
         fetch(marineU, { signal: ctrl.signal }),
-        fetch(wxU,     { signal: ctrl.signal })
+        fetch(wxU,     { signal: ctrl.signal }).catch(() => null)  // weather is best-effort; only marine may fail the load
       ]);
       clearTimeout(slowT); clearTimeout(killT);
       if (seq !== loadSeq) return;                          // a newer selection superseded this one
@@ -487,7 +494,7 @@
       const marine = await mRes.json();
       renderSurf(marine);
       let wx = null;
-      if (wRes.ok){ wx = await wRes.json(); renderWeather(wx); }  // weather is best-effort; surf is primary
+      if (wRes && wRes.ok){ wx = await wRes.json(); renderWeather(wx); }  // weather is best-effort; surf is primary
       writeCache(b, marine, wx);
       setState("");
       setStatus("live", Date.now());
@@ -522,7 +529,7 @@
       $("sArrowG").style.transform = "rotate(" + (c.wave_direction + 180) + "deg)";
     $("sWater").innerHTML  = (c.sea_surface_temperature != null ? Math.round(c.sea_surface_temperature) : "–") + '<span class="u">°C</span>';
 
-    updateFaces();
+    updateLights();
     renderForecast();
   }
 
@@ -546,14 +553,7 @@
     }
     $("wxSub").innerHTML = sub;
 
-    // Wind speed also echoed in the Direction stat box (distinct sun-coloured arrow = wind, vs teal = swell).
-    const wEl = $("sWind");
-    if (wind != null){
-      wEl.innerHTML = '<span class="warrow arrow" style="transform:rotate(' +
-        ((c.wind_direction_10m ?? 0) + 180) + 'deg)">↑</span> ' + wind + ' km/h';
-    } else wEl.textContent = "";
-
-    updateFaces();       // wind just arrived — refresh the Direction character's mood
+    updateLights();      // wind just arrived — the Direction line can now be scored properly
     renderForecast();
   }
 
@@ -572,15 +572,17 @@
       const tmin = wd.temperature_2m_min?.[i];
       const icon = (code != null) ? svgWx(wxCat(code), 22, false) : "";
       const temp = (tmax != null)
-        ? '<div class="temp">' + Math.round(tmax) + '° <span>' + Math.round(tmin) + '°</span></div>' : "";
+        ? Math.round(tmax) + '° <span>' + Math.round(tmin) + '°</span>' : "";
       const card = document.createElement("div");
       card.className = "day";
+      // Five grid cells per row — always emit all five so columns align across days.
       card.innerHTML =
-        '<div class="dow">' + dow + '<span class="dayicon">' + icon + '</span></div>' +
+        '<div class="dow">' + dow + '</div>' +
+        '<span class="ico">' + icon + '</span>' +
         dayGlyph(hm, dir) +
-        '<div class="h">' + (hm?.toFixed(1) ?? "–") + '<span> m</span></div>' +
-        '<div class="w">' + scaleWord(hm) + '</div>' +
-        temp;
+        '<div><div class="h">' + (hm?.toFixed(1) ?? "–") + '<span> m</span></div>' +
+          '<div class="w">' + scaleWord(hm) + '</div></div>' +
+        '<div class="temp">' + temp + '</div>';
       f.appendChild(card);
     });
   }
@@ -739,7 +741,7 @@
   // --- init ---
   function init(){
     stampFooter();
-    renderRegions(); renderBeachOptions(); updateFaces(); sizeCanvas();
+    renderRegions(); renderBeachOptions(); updateLights(); sizeCanvas();
     requestAnimationFrame(frame);
     geolocate();
   }
