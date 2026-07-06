@@ -1,5 +1,5 @@
 // Bump CACHE on each shell change so old assets are evicted.
-const CACHE = "swell-shell-v4";
+const CACHE = "swell-shell-v5";
 const SHELL = ["./", "./index.html", "./manifest.json", "./icon.svg"];
 
 self.addEventListener("install", (e) => {

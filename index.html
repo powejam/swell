@@ -97,7 +97,6 @@
   .cond .u { font-size:12px; font-weight:600; color:rgba(234,252,255,.55); }
   .cond .body { display:flex; align-items:baseline; justify-content:space-between; gap:10px; min-width:0; }
   .cond .note { font-size:12px; font-weight:700; color:rgba(234,252,255,.62); text-align:right; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .cond .note .warrow { color: var(--sun); }
   .tl { width:11px; height:11px; border-radius:50%; background:rgba(234,252,255,.18); }
   .tl.g { background: var(--live);  box-shadow: 0 0 7px var(--live); }
   .tl.o { background: var(--warn);  box-shadow: 0 0 7px var(--warn); }
@@ -167,7 +166,7 @@
     <div class="cond"><span class="tl" id="tlPeriod"></span><span class="k">Period</span>
       <span class="body"><span class="v" id="sPeriod">–<span class="u">s</span></span><span class="note" id="nPeriod"></span></span></div>
     <div class="cond"><span class="tl" id="tlDir"></span><span class="k">Direction</span>
-      <span class="body"><span class="v"><span class="arrow" id="sArrowG">↑</span> <span id="sDir">–</span></span><span class="note" id="nDir"></span></span></div>
+      <span class="body"><span class="v"><span id="sDir">–</span> <span class="arrow" id="sArrowG">↑</span></span><span class="note" id="nDir"></span></span></div>
     <div class="cond"><span class="tl" id="tlWater"></span><span class="k">Water</span>
       <span class="body"><span class="v" id="sWater">–<span class="u">°C</span></span><span class="note" id="nWater"></span></span></div>
   </div>
@@ -197,8 +196,8 @@
   //   DEPLOYED:    date of this push, YYYY-MM-DD.
   // No build step / no package.json — the version is simply baked into this file.
   // ===========================================================================
-  const APP_VERSION = "1.2.0";
-  const DEPLOYED    = "2026-07-05";
+  const APP_VERSION = "1.2.1";
+  const DEPLOYED    = "2026-07-06";
 
   // --- Curated surf beaches (approximate coordinates; API snaps to nearest marine cell) ---
   // `facing` = compass bearing looking straight out to sea from the sand (degrees).
@@ -327,13 +326,12 @@
     set("Period", qp, qp == null ? "" : TL_NOTE.period[qp], qp == null ? "" : TL_TITLE.period[qp]);
     set("Water",  qt, qt == null ? "" : TL_NOTE.water[qt],  qt == null ? "" : TL_TITLE.water[qt]);
 
+    // The line shows only the swell arrow + mnemonic; wind drives the light and
+    // the shore verdict, with its speed tucked into the tooltip.
     const wind = qWindShore(w.wind_speed_10m, w.wind_direction_10m, currentBeach && currentBeach.facing);
-    let note = "";
-    if (w.wind_speed_10m != null){
-      note = '<span class="warrow arrow" style="transform:rotate(' + ((w.wind_direction_10m ?? 0) + 180) + 'deg)">↑</span> ' +
-             Math.round(w.wind_speed_10m) + ' km/h' + (wind.word ? " · " + wind.word : "");
-    }
-    set("Dir", wind.q, note, wind.q == null ? "" : TL_TITLE.dir[wind.q]);
+    const title = wind.q == null ? "" :
+      TL_TITLE.dir[wind.q] + " · wind " + Math.round(w.wind_speed_10m) + " km/h";
+    set("Dir", wind.q, wind.word, title);
   }
 
   // --- WMO weather code -> category / label / icon ---
