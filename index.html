@@ -196,7 +196,7 @@
   //   DEPLOYED:    date of this push, YYYY-MM-DD.
   // No build step / no package.json — the version is simply baked into this file.
   // ===========================================================================
-  const APP_VERSION = "1.4.0";
+  const APP_VERSION = "1.4.1";
   const DEPLOYED    = "2026-07-17";
 
   // --- Curated surf beaches (approximate coordinates; API snaps to nearest marine cell) ---
@@ -306,18 +306,19 @@
   function qWater(t){ if (t == null || isNaN(t)) return null; if (t < 14) return 0; if (t < 20) return 1; return 2; }    // warmer = comfier
 
   // Wind is judged against the beach's aspect, not speed alone: offshore wind
-  // (blowing land->sea) grooms the wave face, onshore wind crumbles it, and under
-  // ~8 km/h it's glassy whatever the direction. `from` is where the wind blows FROM
-  // (meteorological convention), so from ≈ facing = onshore, from ≈ facing±180 = offshore.
+  // (blowing land->sea) grooms the wave face, onshore wind crumbles it. Under
+  // ~8 km/h any direction is harmless (green light) but the word still names the
+  // sector. `from` is where the wind blows FROM (meteorological convention), so
+  // from ≈ facing = onshore, from ≈ facing±180 = offshore.
   function qWindShore(speed, from, facing){
     if (speed == null || isNaN(speed)) return { q: null, word: "" };
-    if (speed < 8) return { q: 2, word: "Glassy" };
     if (from == null || facing == null)                        // no aspect — speed-only fallback
       return { q: speed > 30 ? 0 : speed > 18 ? 1 : 2, word: "" };
     const off = Math.abs(((from - facing + 540) % 360) - 180); // 180 = dead offshore, 0 = dead onshore
-    if (off >= 135) return speed > 40 ? { q: 1, word: "Strong offshore" } : { q: 2, word: "Offshore" };
-    if (off <= 45)  return speed > 15 ? { q: 0, word: "Onshore" } : { q: 1, word: "Light onshore" };
-    return speed > 25 ? { q: 0, word: "Cross-shore" } : { q: 1, word: "Cross-shore" };
+    const light = speed < 8;
+    if (off >= 135) return speed > 40 ? { q: 1, word: "Strong offshore" } : { q: 2, word: light ? "Light offshore" : "Offshore" };
+    if (off <= 45)  return light ? { q: 2, word: "Light onshore" } : speed > 15 ? { q: 0, word: "Onshore" } : { q: 1, word: "Light onshore" };
+    return { q: light ? 2 : speed > 25 ? 0 : 1, word: "Cross-shore" };
   }
 
   // Short note shown on each line + fuller tooltip, both indexed by quality 0/1/2.
