@@ -1,6 +1,30 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" fill="#04111f"/>
-  <path d="M0 360 Q128 300 256 360 T512 360 V512 H0 Z" fill="#0f9aa0"/>
-  <path d="M0 410 Q128 360 256 410 T512 410 V512 H0 Z" fill="#18c4b4"/>
-  <path d="M0 360 Q128 300 256 360 T512 360" fill="none" stroke="#eafcff" stroke-width="10" stroke-linecap="round"/>
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#04111f"/><stop offset="1" stop-color="#0a2a43"/>
+    </linearGradient>
+    <linearGradient id="face" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#18c4b4"/><stop offset="1" stop-color="#0b6f7a"/>
+    </linearGradient>
+    <linearGradient id="barrel" x1="1" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#063448"/><stop offset="1" stop-color="#0f9aa0"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#sky)"/>
+  <!-- wave body: back of the wave rises from the right, crest curls over to the left -->
+  <path d="M512 512 V330 C470 250 410 150 315 122 C235 100 160 130 130 190 C112 228 122 262 150 272
+           C172 280 192 266 190 244 C215 250 238 280 240 318 C242 360 200 400 120 420 C80 430 40 432 0 432 V512 Z"
+        fill="url(#face)"/>
+  <!-- hollow inside the curl -->
+  <path d="M190 244 C215 250 238 280 240 318 C242 350 215 382 170 402 C185 360 190 300 190 244 Z" fill="url(#barrel)" opacity=".85"/>
+  <!-- foam along the lip -->
+  <path d="M470 250 C430 180 380 138 315 122 C235 100 160 130 130 190 C112 228 122 262 150 272 C172 280 192 266 190 244"
+        fill="none" stroke="#eafcff" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- spray off the lip -->
+  <circle cx="112" cy="168" r="9" fill="#eafcff"/>
+  <circle cx="96" cy="200" r="6" fill="#eafcff"/>
+  <circle cx="126" cy="140" r="6" fill="#eafcff" opacity=".8"/>
+  <!-- foreground water -->
+  <path d="M0 440 C90 425 170 440 256 452 C340 464 430 450 512 438 V512 H0 Z" fill="#18c4b4"/>
+  <path d="M0 440 C90 425 170 440 256 452 C340 464 430 450 512 438" fill="none" stroke="#eafcff" stroke-width="8" stroke-linecap="round" opacity=".9"/>
 </svg>
