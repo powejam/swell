@@ -38,6 +38,14 @@
   header { display:flex; align-items:baseline; justify-content:space-between; margin-bottom: 14px; }
   .brand { font-size: 30px; font-weight: 800; letter-spacing: -1.2px; }
   .brand b { color: var(--teal); }
+
+  /* "we've moved" notice, shown only on the retired GitHub Pages address */
+  .moved { background: var(--glass); border:1px solid var(--hair); border-radius:16px; padding: 22px 20px; margin-top: 24px; line-height:1.5; }
+  .moved h1 { font-size: 20px; margin: 0 0 8px; }
+  .moved p { margin: 0 0 16px; color: rgba(234,252,255,.8); }
+  .moved a.go { display:inline-block; background: var(--teal); color: var(--abyss); font-weight:700;
+    text-decoration:none; padding: 12px 18px; border-radius: 12px; }
+  .moved small { display:block; margin-top: 16px; color: rgba(234,252,255,.55); }
   .tag { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: rgba(234,252,255,.45); }
 
   /* region filter */
@@ -210,13 +218,38 @@
 (() => {
   "use strict";
 
+  // --- Retired address: Swell moved from GitHub Pages to Cloudflare. -------
+  // Both sites build from the same main, so the old one detects itself and
+  // shows a link instead of the app. It also unregisters the old service
+  // worker and clears its cache so an installed copy can't keep serving the
+  // stale app. Remove this block once GitHub Pages is switched off.
+  const NEW_HOME = "https://swell.powejam.com/";
+  if (location.hostname.endsWith("github.io")){ showMoved(); return; }
+
+  function showMoved(){
+    document.title = "Swell has moved";
+    document.querySelector(".wrap").innerHTML =
+      '<header><div class="brand">Swell<b>.</b></div><div class="tag">surf forecast</div></header>' +
+      '<div class="moved"><h1>Swell has moved</h1>' +
+      '<p>This address is being retired. Swell now lives at swell.powejam.com.</p>' +
+      '<a class="go" href="' + NEW_HOME + '">Go to swell.powejam.com</a>' +
+      '<small>Installed Swell on your home screen? Remove this copy and install it again from the new address. ' +
+      'Favourites don\u2019t carry over, so you\u2019ll need to star them again.</small></div>';
+    if ("serviceWorker" in navigator){
+      navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => r.unregister())).catch(()=>{});
+    }
+    if ("caches" in window){
+      caches.keys().then(ks => ks.forEach(k => caches.delete(k))).catch(()=>{});
+    }
+  }
+
   // ===========================================================================
   // BUILD — bump on EVERY push to main. This is what the footer shows.
   //   APP_VERSION: vX.Y.Z  (patch = fix/tweak, minor = feature). Never reuse one.
   //   DEPLOYED:    date of this push, YYYY-MM-DD.
   // No build step / no package.json — the version is simply baked into this file.
   // ===========================================================================
-  const APP_VERSION = "1.5.0";
+  const APP_VERSION = "1.5.1";
   const DEPLOYED    = "2026-09-27";
 
   // --- Curated surf beaches (approximate coordinates; API snaps to nearest marine cell) ---
