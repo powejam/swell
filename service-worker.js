@@ -1,5 +1,5 @@
 // Bump CACHE on each shell change so old assets are evicted.
-const CACHE = "swell-shell-v12";
+const CACHE = "swell-shell-v13";
 const SHELL = ["./", "./index.html", "./manifest.json", "./icon.svg"];
 
 self.addEventListener("install", (e) => {
@@ -10,7 +10,8 @@ self.addEventListener("install", (e) => {
 self.addEventListener("activate", (e) => {
   e.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
+      // Only Swell's own caches: on powejam.github.io every app shares one origin.
+      Promise.all(keys.filter((k) => k.startsWith("swell-") && k !== CACHE).map((k) => caches.delete(k)))
     )
   );
   self.clients.claim();

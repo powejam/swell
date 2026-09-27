@@ -220,9 +220,9 @@
 
   // --- Retired address: Swell moved from GitHub Pages to Cloudflare. -------
   // Both sites build from the same main, so the old one detects itself and
-  // shows a link instead of the app. It also unregisters the old service
-  // worker and clears its cache so an installed copy can't keep serving the
-  // stale app. Remove this block once GitHub Pages is switched off.
+  // shows a link instead of the app. It also unregisters Swell's old service
+  // worker and clears Swell's caches so an installed copy can't keep serving
+  // the stale app. Remove this block once GitHub Pages is switched off.
   const NEW_HOME = "https://swell.powejam.com/";
   if (location.hostname.endsWith("github.io")){ showMoved(); return; }
 
@@ -235,11 +235,15 @@
       '<a class="go" href="' + NEW_HOME + '">Go to swell.powejam.com</a>' +
       '<small>Installed Swell on your home screen? Remove this copy and install it again from the new address. ' +
       'Favourites don\u2019t carry over, so you\u2019ll need to star them again.</small></div>';
+    // powejam.github.io is one origin shared by all the apps under it, so only
+    // touch Swell's own service worker (scope /swell/) and caches (swell-*).
     if ("serviceWorker" in navigator){
-      navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => r.unregister())).catch(()=>{});
+      navigator.serviceWorker.getRegistrations()
+        .then(rs => rs.filter(r => new URL(r.scope).pathname.startsWith("/swell/")).forEach(r => r.unregister()))
+        .catch(()=>{});
     }
     if ("caches" in window){
-      caches.keys().then(ks => ks.forEach(k => caches.delete(k))).catch(()=>{});
+      caches.keys().then(ks => ks.filter(k => k.startsWith("swell-")).forEach(k => caches.delete(k))).catch(()=>{});
     }
   }
 
@@ -249,7 +253,7 @@
   //   DEPLOYED:    date of this push, YYYY-MM-DD.
   // No build step / no package.json — the version is simply baked into this file.
   // ===========================================================================
-  const APP_VERSION = "1.5.2";
+  const APP_VERSION = "1.5.3";
   const DEPLOYED    = "2026-09-27";
 
   // --- Curated surf beaches (approximate coordinates; API snaps to nearest marine cell) ---
